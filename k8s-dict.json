@@ -253,6 +253,226 @@
       "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: report-service\n  namespace: prod\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: report-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: report-service\n    spec:\n      volumes:\n        - name: report-data\n          persistentVolumeClaim:\n            claimName: report-shared-pvc\n      containers:\n        - name: report-service\n          image: registry.example.com/report/report-service:4.6.1\n          volumeMounts:\n            - name: report-data\n              mountPath: /data/report"
     }
   ],
+  "Pod": [
+    {
+      "path": "metadata.labels",
+      "type": "map[string]string",
+      "description": "Pod 标签。即使 Pod 在生产环境通常由 Deployment 或 StatefulSet 托管，标签仍然是服务发现、监控抓取、网络策略和审计过滤的基础。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\n  labels:\n    app.kubernetes.io/name: toolbox\n    app.kubernetes.io/component: ops\nspec:\n  restartPolicy: Always\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0"
+    },
+    {
+      "path": "metadata.annotations",
+      "type": "map[string]string",
+      "description": "Pod 注解。适合记录变更原因、抓取说明、注入平台行为或对接 sidecar/service mesh 等扩展能力。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\n  annotations:\n    kubernetes.io/change-cause: \"manual diagnostics\"\n    prometheus.io/scrape: \"true\"\nspec:\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0"
+    },
+    {
+      "path": "spec.restartPolicy",
+      "type": "string",
+      "description": "Pod 重启策略。普通长驻 Pod 默认使用 Always；一次性运维任务或初始化型容器更常见 OnFailure / Never。直接写 Pod 时要根据运行语义明确重启行为。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: schema-checker\n  namespace: ops\nspec:\n  restartPolicy: OnFailure\n  containers:\n    - name: schema-checker\n      image: registry.example.com/platform/schema-checker:2.1.0\n      command:\n        - /bin/sh\n        - -c\n      args:\n        - python /app/check.py"
+    },
+    {
+      "path": "spec.serviceAccountName",
+      "type": "string",
+      "description": "Pod 使用的 ServiceAccount。生产应避免 default 账号，尤其是运维容器、巡检容器、控制类 Pod，应绑定最小权限账号。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: kube-auditor\n  namespace: ops\nspec:\n  serviceAccountName: kube-auditor-sa\n  containers:\n    - name: kube-auditor\n      image: registry.example.com/platform/kube-auditor:1.4.2"
+    },
+    {
+      "path": "spec.imagePullSecrets",
+      "type": "[]LocalObjectReference",
+      "description": "私有镜像仓库凭据。生产上 Pod 直接运行企业私有镜像时，也要显式注入 dockerconfigjson Secret，避免拉取失败。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  imagePullSecrets:\n    - name: regcred-prod\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0\n      imagePullPolicy: IfNotPresent"
+    },
+    {
+      "path": "spec.nodeSelector",
+      "type": "map[string]string",
+      "description": "节点标签选择器。适合把 Pod 固定在运维节点池、边缘节点或特定 CPU 架构节点上。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  nodeSelector:\n    nodepool: ops\n    kubernetes.io/arch: amd64\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0"
+    },
+    {
+      "path": "spec.affinity",
+      "type": "Object",
+      "description": "Pod 调度亲和性。适合控制 Pod 尽量分布到指定节点池、可用区，或避免与某些工作负载扎堆。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  affinity:\n    nodeAffinity:\n      requiredDuringSchedulingIgnoredDuringExecution:\n        nodeSelectorTerms:\n          - matchExpressions:\n              - key: nodepool\n                operator: In\n                values:\n                  - ops\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0"
+    },
+    {
+      "path": "spec.tolerations",
+      "type": "[]Object",
+      "description": "容忍带污点节点。适合让 Pod 调度到 dedicated 节点池、系统节点或临时运维节点。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  tolerations:\n    - key: dedicated\n      operator: Equal\n      value: ops\n      effect: NoSchedule\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0"
+    },
+    {
+      "path": "spec.hostNetwork",
+      "type": "boolean",
+      "description": "是否使用宿主机网络。仅适合边缘代理、节点采集器、网络诊断容器等少数场景；普通业务 Pod 不建议开启。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: netshoot\n  namespace: ops\nspec:\n  hostNetwork: true\n  dnsPolicy: ClusterFirstWithHostNet\n  containers:\n    - name: netshoot\n      image: registry.example.com/platform/netshoot:0.13.0"
+    },
+    {
+      "path": "spec.dnsPolicy",
+      "type": "string",
+      "description": "DNS 策略。普通 Pod 使用 ClusterFirst；如果 hostNetwork=true，通常要切换为 ClusterFirstWithHostNet。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: netshoot\n  namespace: ops\nspec:\n  hostNetwork: true\n  dnsPolicy: ClusterFirstWithHostNet\n  containers:\n    - name: netshoot\n      image: registry.example.com/platform/netshoot:0.13.0"
+    },
+    {
+      "path": "spec.terminationGracePeriodSeconds",
+      "type": "integer",
+      "description": "优雅停机总窗口。即使直接运行 Pod，也应为连接排空、注销和缓冲预留足够时间。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: singleton-gateway\n  namespace: prod\nspec:\n  terminationGracePeriodSeconds: 60\n  containers:\n    - name: gateway\n      image: registry.example.com/platform/singleton-gateway:3.2.1\n      lifecycle:\n        preStop:\n          exec:\n            command:\n              - /bin/sh\n              - -c\n              - sleep 20"
+    },
+    {
+      "path": "spec.securityContext.fsGroup",
+      "type": "integer",
+      "description": "Pod 级 fsGroup。适合多个进程共享卷读写，或应用以非 root 身份访问挂载目录时统一处理文件组权限。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: file-worker\n  namespace: prod\nspec:\n  securityContext:\n    fsGroup: 10001\n  containers:\n    - name: file-worker\n      image: registry.example.com/content/file-worker:5.1.0"
+    },
+    {
+      "path": "spec.containers[]",
+      "type": "[]Object",
+      "description": "Pod 容器列表。直接声明 Pod 时，至少要有一个容器；生产上需补齐镜像版本、资源、探针、挂载与安全上下文。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0\n      resources:\n        requests:\n          cpu: 200m\n          memory: 256Mi\n        limits:\n          cpu: 200m\n          memory: 256Mi"
+    },
+    {
+      "path": "spec.containers[].image",
+      "type": "string",
+      "description": "容器镜像。生产环境应固定版本甚至 digest，避免直接使用 latest 导致不可控漂移。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0\n      imagePullPolicy: IfNotPresent"
+    },
+    {
+      "path": "spec.containers[].command",
+      "type": "[]string",
+      "description": "覆盖默认 ENTRYPOINT。适合注入诊断命令、启动包装脚本或一次性运维逻辑。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: config-checker\n  namespace: ops\nspec:\n  restartPolicy: OnFailure\n  containers:\n    - name: config-checker\n      image: registry.example.com/platform/toolbox:1.0.0\n      command:\n        - /bin/sh\n        - -c"
+    },
+    {
+      "path": "spec.containers[].args",
+      "type": "[]string",
+      "description": "覆盖默认 CMD。适合把具体执行内容以参数形式注入，减少镜像定制。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: config-checker\n  namespace: ops\nspec:\n  restartPolicy: OnFailure\n  containers:\n    - name: config-checker\n      image: registry.example.com/platform/toolbox:1.0.0\n      command:\n        - /bin/sh\n        - -c\n      args:\n        - python /app/check.py --env=prod"
+    },
+    {
+      "path": "spec.containers[].ports[]",
+      "type": "[]Object",
+      "description": "容器端口声明。它本身不会自动暴露服务，但可用于探针、Service targetPort 和文档化约束。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: singleton-gateway\n  namespace: prod\nspec:\n  containers:\n    - name: gateway\n      image: registry.example.com/platform/singleton-gateway:3.2.1\n      ports:\n        - name: http\n          containerPort: 8080\n          protocol: TCP"
+    },
+    {
+      "path": "spec.containers[].env[].valueFrom",
+      "type": "Object",
+      "description": "环境变量动态取值。可从 fieldRef、resourceFieldRef、ConfigMap 或 Secret 中获取，避免把运行时上下文写死在镜像里。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0\n      env:\n        - name: POD_NAME\n          valueFrom:\n            fieldRef:\n              fieldPath: metadata.name"
+    },
+    {
+      "path": "spec.containers[].envFrom",
+      "type": "[]Object",
+      "description": "批量导入 ConfigMap/Secret 环境变量。适合配置项较多的工具容器或单实例应用。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0\n      envFrom:\n        - configMapRef:\n            name: toolbox-config\n        - secretRef:\n            name: toolbox-secret"
+    },
+    {
+      "path": "spec.containers[].resources",
+      "type": "Object",
+      "description": "容器资源请求与限制。即使是直接运行的 Pod，也应显式声明 requests/limits，避免被错误驱逐或挤占节点资源。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0\n      resources:\n        requests:\n          cpu: 200m\n          memory: 256Mi\n        limits:\n          cpu: 200m\n          memory: 256Mi"
+    },
+    {
+      "path": "spec.containers[].volumeMounts[]",
+      "type": "[]Object",
+      "description": "卷挂载点。适合把 application.yml、证书、临时目录或共享数据挂载进容器。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0\n      volumeMounts:\n        - name: app-config\n          mountPath: /app/config/application.yml\n          subPath: application.yml\n          readOnly: true\n  volumes:\n    - name: app-config\n      configMap:\n        name: toolbox-config"
+    },
+    {
+      "path": "spec.containers[].lifecycle.preStop",
+      "type": "Object",
+      "description": "优雅停机钩子。适合连接排空、注销、任务停止前缓冲等场景。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: singleton-gateway\n  namespace: prod\nspec:\n  terminationGracePeriodSeconds: 60\n  containers:\n    - name: gateway\n      image: registry.example.com/platform/singleton-gateway:3.2.1\n      lifecycle:\n        preStop:\n          exec:\n            command:\n              - /bin/sh\n              - -c\n              - sleep 20"
+    },
+    {
+      "path": "spec.containers[].startupProbe",
+      "type": "Object",
+      "description": "启动探针。适合冷启动较慢的 Java/.NET 应用，防止 liveness/readiness 过早介入。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: startup-demo\n  namespace: prod\nspec:\n  containers:\n    - name: startup-demo\n      image: registry.example.com/platform/startup-demo:1.3.0\n      ports:\n        - name: http\n          containerPort: 8080\n      startupProbe:\n        httpGet:\n          path: /actuator/health/readiness\n          port: http\n        periodSeconds: 10\n        timeoutSeconds: 3\n        failureThreshold: 30"
+    },
+    {
+      "path": "spec.containers[].livenessProbe",
+      "type": "Object",
+      "description": "存活探针。用于识别进程是否进入不可恢复状态，建议接入应用自身的 liveness 端点。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: singleton-gateway\n  namespace: prod\nspec:\n  containers:\n    - name: gateway\n      image: registry.example.com/platform/singleton-gateway:3.2.1\n      ports:\n        - name: http\n          containerPort: 8080\n      livenessProbe:\n        httpGet:\n          path: /actuator/health/liveness\n          port: http\n        initialDelaySeconds: 30\n        periodSeconds: 15\n        timeoutSeconds: 3\n        failureThreshold: 3"
+    },
+    {
+      "path": "spec.containers[].readinessProbe",
+      "type": "Object",
+      "description": "就绪探针。只有当应用真正可服务时才参与流量，适合避免冷启动流量误打。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: singleton-gateway\n  namespace: prod\nspec:\n  containers:\n    - name: gateway\n      image: registry.example.com/platform/singleton-gateway:3.2.1\n      ports:\n        - name: http\n          containerPort: 8080\n      readinessProbe:\n        httpGet:\n          path: /actuator/health/readiness\n          port: http\n        initialDelaySeconds: 15\n        periodSeconds: 10\n        timeoutSeconds: 2\n        failureThreshold: 3"
+    },
+    {
+      "path": "spec.containers[].securityContext",
+      "type": "Object",
+      "description": "容器级安全上下文。生产推荐使用非 root、只读根文件系统、禁止提权等约束。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0\n      securityContext:\n        runAsNonRoot: true\n        readOnlyRootFilesystem: true\n        allowPrivilegeEscalation: false"
+    },
+    {
+      "path": "spec.volumes[]",
+      "type": "[]Object",
+      "description": "Pod 卷定义。可挂载 ConfigMap、Secret、emptyDir、hostPath 或现有 PVC。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0\n      volumeMounts:\n        - name: app-config\n          mountPath: /app/config/application.yml\n          subPath: application.yml\n  volumes:\n    - name: app-config\n      configMap:\n        name: toolbox-config"
+    },
+    {
+      "path": "spec.volumes[].emptyDir",
+      "type": "Object",
+      "description": "临时目录卷。生命周期与 Pod 一致，适合缓存、临时文件、只读根文件系统配套的 /tmp。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  volumes:\n    - name: tmp\n      emptyDir: {}\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0\n      volumeMounts:\n        - name: tmp\n          mountPath: /tmp"
+    },
+    {
+      "path": "spec.volumes[].hostPath.path",
+      "type": "string",
+      "description": "宿主机目录挂载。仅适合节点级诊断、日志采集、主机代理等受控场景，普通业务 Pod 不建议使用。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: node-log-reader\n  namespace: ops\nspec:\n  containers:\n    - name: reader\n      image: registry.example.com/platform/toolbox:1.0.0\n      volumeMounts:\n        - name: node-logs\n          mountPath: /host/var/log\n          readOnly: true\n  volumes:\n    - name: node-logs\n      hostPath:\n        path: /var/log"
+    },
+    {
+      "path": "spec.volumes[].configMap.name",
+      "type": "string",
+      "description": "引用 ConfigMap 名称。适合把配置文件、脚本、只读参数挂载进容器。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: toolbox\n  namespace: ops\nspec:\n  containers:\n    - name: toolbox\n      image: registry.example.com/platform/toolbox:1.0.0\n      volumeMounts:\n        - name: app-config\n          mountPath: /app/config/application.yml\n          subPath: application.yml\n          readOnly: true\n  volumes:\n    - name: app-config\n      configMap:\n        name: toolbox-config"
+    },
+    {
+      "path": "spec.volumes[].secret.secretName",
+      "type": "string",
+      "description": "引用 Secret 名称。适合挂载证书、私钥、口令文件等敏感内容。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: cert-checker\n  namespace: ops\nspec:\n  containers:\n    - name: cert-checker\n      image: registry.example.com/platform/toolbox:1.0.0\n      volumeMounts:\n        - name: tls-cert\n          mountPath: /etc/tls\n          readOnly: true\n  volumes:\n    - name: tls-cert\n      secret:\n        secretName: internal-tls"
+    },
+    {
+      "path": "spec.volumes[].persistentVolumeClaim.claimName",
+      "type": "string",
+      "description": "引用现有 PVC。适合直接运行的 Pod 需要访问已有持久卷数据时使用。",
+      "demo": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: report-reader\n  namespace: prod\nspec:\n  containers:\n    - name: reader\n      image: registry.example.com/report/report-reader:4.6.1\n      volumeMounts:\n        - name: report-data\n          mountPath: /data/report\n  volumes:\n    - name: report-data\n      persistentVolumeClaim:\n        claimName: report-shared-pvc"
+    }
+  ],
+  "Namespace": [
+    {
+      "path": "metadata.name",
+      "type": "string",
+      "description": "Namespace 名称。建议使用稳定、语义清晰的命名方式，例如 `dev`、`test`、`prod`、`team-a-dev`，避免后续权限、配额和网络策略规则混乱。",
+      "demo": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: dev"
+    },
+    {
+      "path": "metadata.labels",
+      "type": "map[string]string",
+      "description": "Namespace 治理标签。生产上建议至少标记环境、团队、业务域与成本中心，这样便于做资源统计、权限边界、监控分组和账单归集。",
+      "demo": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: payments-prod\n  labels:\n    environment: prod\n    team: payments\n    app.kubernetes.io/part-of: commerce\n    cost-center: cc-1001"
+    },
+    {
+      "path": "metadata.annotations",
+      "type": "map[string]string",
+      "description": "Namespace 扩展注解。适合记录工单号、审批人、创建来源、责任人或自动化平台写入的元数据，便于后续审计和治理。",
+      "demo": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: payments-prod\n  annotations:\n    owner: platform-team\n    ticket: CHG-2026-0328\n    created-by: namespace-operator"
+    },
+    {
+      "path": "spec.finalizers",
+      "type": "[]string",
+      "description": "Namespace finalizers。多数情况下由系统控制器维护，用于保证删除 Namespace 时先清理内部对象；普通业务方一般不需要手动设置。",
+      "demo": "apiVersion: v1\nkind: Namespace\nmetadata:\n  name: dev\nspec:\n  finalizers:\n    - kubernetes"
+    }
+  ],
   "Service": [
     {
       "path": "metadata.annotations",

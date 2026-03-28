@@ -1,7 +1,9 @@
 {
   "defaultResource": "Deployment",
   "resourceOrder": [
+    "Pod",
     "Deployment",
+    "Namespace",
     "Service",
     "Ingress",
     "ConfigMap",
@@ -786,6 +788,501 @@
           "path": "spec.template.spec.volumes[].persistentVolumeClaim.claimName",
           "indent": 4,
           "comment": "引用现有 PVC",
+          "type": "string"
+        }
+      ]
+    },
+    "Pod": {
+      "icon": "P",
+      "subtitle": "最小可调度运行单元",
+      "focus": "容器、探针、资源、卷、调度、安全",
+      "summary": "Pod 适合单实例工具、一次性运维容器、调试容器或必须直接运行的系统级工作负载。生产业务常用 Deployment/StatefulSet 托管，但理解 Pod 字段是排障、导入分析和底层配置的基础。",
+      "schema": [
+        {
+          "display": "apiVersion: v1",
+          "path": "apiVersion",
+          "indent": 0,
+          "comment": "必选，Pod API 版本",
+          "type": "string",
+          "description": "核心 Pod 资源统一使用 v1。"
+        },
+        {
+          "display": "kind: Pod",
+          "path": "kind",
+          "indent": 0,
+          "comment": "必选，资源类型",
+          "type": "string",
+          "description": "声明当前对象为 Pod。"
+        },
+        {
+          "display": "metadata:",
+          "path": "metadata",
+          "indent": 0,
+          "comment": "必选，元数据",
+          "type": "Object"
+        },
+        {
+          "display": "name: string",
+          "path": "metadata.name",
+          "indent": 1,
+          "comment": "Pod 名称",
+          "type": "string"
+        },
+        {
+          "display": "namespace: string",
+          "path": "metadata.namespace",
+          "indent": 1,
+          "comment": "命名空间",
+          "type": "string"
+        },
+        {
+          "display": "labels:",
+          "path": "metadata.labels",
+          "indent": 1,
+          "comment": "建议统一使用 app.kubernetes.io/* 标签",
+          "type": "map[string]string",
+          "description": "标签可用于 Service 选择、监控抓取、审计检索与排障过滤。"
+        },
+        {
+          "display": "annotations:",
+          "path": "metadata.annotations",
+          "indent": 1,
+          "comment": "运行说明、变更原因与平台扩展信息",
+          "type": "map[string]string",
+          "description": "Pod annotations 常用于记录运行上下文、注入平台行为或监控抓取提示。"
+        },
+        {
+          "display": "spec:",
+          "path": "spec",
+          "indent": 0,
+          "comment": "Pod 核心定义",
+          "type": "Object"
+        },
+        {
+          "display": "restartPolicy: Always | OnFailure | Never",
+          "path": "spec.restartPolicy",
+          "indent": 1,
+          "comment": "容器退出后的重启策略",
+          "type": "string"
+        },
+        {
+          "display": "serviceAccountName: string",
+          "path": "spec.serviceAccountName",
+          "indent": 1,
+          "comment": "绑定最小权限服务账号",
+          "type": "string"
+        },
+        {
+          "display": "imagePullSecrets:",
+          "path": "spec.imagePullSecrets",
+          "indent": 1,
+          "comment": "私有镜像仓库凭据",
+          "type": "[]LocalObjectReference"
+        },
+        {
+          "display": "- name: regcred-prod",
+          "path": "spec.imagePullSecrets[].name",
+          "indent": 2,
+          "comment": "引用 dockerconfigjson Secret",
+          "type": "string"
+        },
+        {
+          "display": "nodeName: string",
+          "path": "spec.nodeName",
+          "indent": 1,
+          "comment": "强制调度到指定节点",
+          "type": "string"
+        },
+        {
+          "display": "nodeSelector:",
+          "path": "spec.nodeSelector",
+          "indent": 1,
+          "comment": "简单节点标签约束",
+          "type": "map[string]string"
+        },
+        {
+          "display": "affinity:",
+          "path": "spec.affinity",
+          "indent": 1,
+          "comment": "节点亲和性与 Pod 反亲和性",
+          "type": "Object"
+        },
+        {
+          "display": "tolerations:",
+          "path": "spec.tolerations",
+          "indent": 1,
+          "comment": "容忍带污点节点",
+          "type": "[]Object"
+        },
+        {
+          "display": "hostNetwork: false",
+          "path": "spec.hostNetwork",
+          "indent": 1,
+          "comment": "是否使用宿主机网络",
+          "type": "boolean"
+        },
+        {
+          "display": "dnsPolicy: ClusterFirst | ClusterFirstWithHostNet | Default | None",
+          "path": "spec.dnsPolicy",
+          "indent": 1,
+          "comment": "DNS 策略",
+          "type": "string"
+        },
+        {
+          "display": "terminationGracePeriodSeconds: 30",
+          "path": "spec.terminationGracePeriodSeconds",
+          "indent": 1,
+          "comment": "优雅停机总窗口",
+          "type": "integer"
+        },
+        {
+          "display": "securityContext:",
+          "path": "spec.securityContext",
+          "indent": 1,
+          "comment": "Pod 级安全上下文",
+          "type": "Object"
+        },
+        {
+          "display": "fsGroup: 10001",
+          "path": "spec.securityContext.fsGroup",
+          "indent": 2,
+          "comment": "共享卷文件组权限",
+          "type": "integer"
+        },
+        {
+          "display": "containers:",
+          "path": "spec.containers[]",
+          "indent": 1,
+          "comment": "必选，容器列表",
+          "type": "[]Object"
+        },
+        {
+          "display": "- name: string",
+          "path": "spec.containers[].name",
+          "indent": 2,
+          "comment": "容器名称",
+          "type": "string"
+        },
+        {
+          "display": "image: registry.example.com/platform/toolbox:1.0.0",
+          "path": "spec.containers[].image",
+          "indent": 3,
+          "comment": "固定版本镜像",
+          "type": "string"
+        },
+        {
+          "display": "imagePullPolicy: IfNotPresent | Always | Never",
+          "path": "spec.containers[].imagePullPolicy",
+          "indent": 3,
+          "comment": "镜像拉取策略",
+          "type": "string"
+        },
+        {
+          "display": "command:",
+          "path": "spec.containers[].command",
+          "indent": 3,
+          "comment": "覆盖默认 ENTRYPOINT",
+          "type": "[]string"
+        },
+        {
+          "display": "args:",
+          "path": "spec.containers[].args",
+          "indent": 3,
+          "comment": "覆盖默认 CMD",
+          "type": "[]string"
+        },
+        {
+          "display": "workingDir: /app",
+          "path": "spec.containers[].workingDir",
+          "indent": 3,
+          "comment": "工作目录",
+          "type": "string"
+        },
+        {
+          "display": "ports:",
+          "path": "spec.containers[].ports[]",
+          "indent": 3,
+          "comment": "容器声明端口",
+          "type": "[]Object"
+        },
+        {
+          "display": "- name: http",
+          "path": "spec.containers[].ports[].name",
+          "indent": 4,
+          "comment": "端口名称",
+          "type": "string"
+        },
+        {
+          "display": "containerPort: 8080",
+          "path": "spec.containers[].ports[].containerPort",
+          "indent": 5,
+          "comment": "应用监听端口",
+          "type": "integer"
+        },
+        {
+          "display": "protocol: TCP | UDP | SCTP",
+          "path": "spec.containers[].ports[].protocol",
+          "indent": 5,
+          "comment": "端口协议",
+          "type": "string"
+        },
+        {
+          "display": "env:",
+          "path": "spec.containers[].env[]",
+          "indent": 3,
+          "comment": "显式环境变量",
+          "type": "[]Object"
+        },
+        {
+          "display": "- name: POD_NAME",
+          "path": "spec.containers[].env[].name",
+          "indent": 4,
+          "comment": "环境变量名称",
+          "type": "string"
+        },
+        {
+          "display": "valueFrom:",
+          "path": "spec.containers[].env[].valueFrom",
+          "indent": 5,
+          "comment": "动态引用字段、ConfigMap 或 Secret",
+          "type": "Object"
+        },
+        {
+          "display": "envFrom:",
+          "path": "spec.containers[].envFrom",
+          "indent": 3,
+          "comment": "批量导入配置",
+          "type": "[]Object"
+        },
+        {
+          "display": "resources:",
+          "path": "spec.containers[].resources",
+          "indent": 3,
+          "comment": "容器资源请求与限制",
+          "type": "Object"
+        },
+        {
+          "display": "volumeMounts:",
+          "path": "spec.containers[].volumeMounts[]",
+          "indent": 3,
+          "comment": "卷挂载点",
+          "type": "[]Object"
+        },
+        {
+          "display": "- name: app-config",
+          "path": "spec.containers[].volumeMounts[].name",
+          "indent": 4,
+          "comment": "引用卷名称",
+          "type": "string"
+        },
+        {
+          "display": "mountPath: /app/config/application.yml",
+          "path": "spec.containers[].volumeMounts[].mountPath",
+          "indent": 5,
+          "comment": "容器内挂载路径",
+          "type": "string"
+        },
+        {
+          "display": "subPath: application.yml",
+          "path": "spec.containers[].volumeMounts[].subPath",
+          "indent": 5,
+          "comment": "仅挂载单个文件或子目录",
+          "type": "string"
+        },
+        {
+          "display": "readOnly: true",
+          "path": "spec.containers[].volumeMounts[].readOnly",
+          "indent": 5,
+          "comment": "是否只读挂载",
+          "type": "boolean"
+        },
+        {
+          "display": "lifecycle:",
+          "path": "spec.containers[].lifecycle",
+          "indent": 3,
+          "comment": "容器生命周期钩子",
+          "type": "Object"
+        },
+        {
+          "display": "preStop:",
+          "path": "spec.containers[].lifecycle.preStop",
+          "indent": 4,
+          "comment": "优雅停机前执行",
+          "type": "Object"
+        },
+        {
+          "display": "postStart:",
+          "path": "spec.containers[].lifecycle.postStart",
+          "indent": 4,
+          "comment": "容器启动后执行",
+          "type": "Object"
+        },
+        {
+          "display": "startupProbe:",
+          "path": "spec.containers[].startupProbe",
+          "indent": 3,
+          "comment": "启动探针",
+          "type": "Object"
+        },
+        {
+          "display": "livenessProbe:",
+          "path": "spec.containers[].livenessProbe",
+          "indent": 3,
+          "comment": "存活探针",
+          "type": "Object"
+        },
+        {
+          "display": "readinessProbe:",
+          "path": "spec.containers[].readinessProbe",
+          "indent": 3,
+          "comment": "就绪探针",
+          "type": "Object"
+        },
+        {
+          "display": "securityContext:",
+          "path": "spec.containers[].securityContext",
+          "indent": 3,
+          "comment": "容器级安全约束",
+          "type": "Object"
+        },
+        {
+          "display": "runAsNonRoot: true",
+          "path": "spec.containers[].securityContext.runAsNonRoot",
+          "indent": 4,
+          "comment": "禁止以 root 身份运行",
+          "type": "boolean"
+        },
+        {
+          "display": "readOnlyRootFilesystem: true",
+          "path": "spec.containers[].securityContext.readOnlyRootFilesystem",
+          "indent": 4,
+          "comment": "只读根文件系统",
+          "type": "boolean"
+        },
+        {
+          "display": "volumes:",
+          "path": "spec.volumes[]",
+          "indent": 1,
+          "comment": "Pod 级卷定义",
+          "type": "[]Object"
+        },
+        {
+          "display": "- name: app-config",
+          "path": "spec.volumes[].name",
+          "indent": 2,
+          "comment": "卷名称",
+          "type": "string"
+        },
+        {
+          "display": "emptyDir: {}",
+          "path": "spec.volumes[].emptyDir",
+          "indent": 3,
+          "comment": "临时目录卷",
+          "type": "Object"
+        },
+        {
+          "display": "hostPath.path: /data/shared",
+          "path": "spec.volumes[].hostPath.path",
+          "indent": 3,
+          "comment": "宿主机路径",
+          "type": "string"
+        },
+        {
+          "display": "configMap.name: app-config",
+          "path": "spec.volumes[].configMap.name",
+          "indent": 3,
+          "comment": "引用 ConfigMap 名称",
+          "type": "string"
+        },
+        {
+          "display": "secret.secretName: app-secret",
+          "path": "spec.volumes[].secret.secretName",
+          "indent": 3,
+          "comment": "引用 Secret 名称",
+          "type": "string"
+        },
+        {
+          "display": "persistentVolumeClaim.claimName: shared-pvc",
+          "path": "spec.volumes[].persistentVolumeClaim.claimName",
+          "indent": 3,
+          "comment": "引用现有 PVC",
+          "type": "string"
+        }
+      ]
+    },
+    "Namespace": {
+      "icon": "N",
+      "subtitle": "集群资源隔离边界",
+      "focus": "名称、标签、注解、治理元信息",
+      "summary": "Namespace 用于划分环境、团队或业务边界。生产上通常会结合 ResourceQuota、LimitRange、NetworkPolicy、RBAC 和监控标签一起治理。",
+      "schema": [
+        {
+          "display": "apiVersion: v1",
+          "path": "apiVersion",
+          "indent": 0,
+          "comment": "必选，Namespace API 版本",
+          "type": "string",
+          "description": "Namespace 属于核心资源，统一使用 v1。"
+        },
+        {
+          "display": "kind: Namespace",
+          "path": "kind",
+          "indent": 0,
+          "comment": "必选，资源类型",
+          "type": "string",
+          "description": "声明当前对象为 Namespace。"
+        },
+        {
+          "display": "metadata:",
+          "path": "metadata",
+          "indent": 0,
+          "comment": "必选，元数据",
+          "type": "Object"
+        },
+        {
+          "display": "name: dev",
+          "path": "metadata.name",
+          "indent": 1,
+          "comment": "Namespace 名称",
+          "type": "string",
+          "description": "命名空间名称在集群范围内唯一，通常用来表达环境、团队或业务域。"
+        },
+        {
+          "display": "labels:",
+          "path": "metadata.labels",
+          "indent": 1,
+          "comment": "环境、团队、成本中心等治理标签",
+          "type": "map[string]string",
+          "description": "建议为 Namespace 打上环境、团队、业务线、成本中心等标签，方便做权限、计费、监控和资源统计。"
+        },
+        {
+          "display": "annotations:",
+          "path": "metadata.annotations",
+          "indent": 1,
+          "comment": "治理说明、工单号、创建来源等",
+          "type": "map[string]string",
+          "description": "可记录工单号、审批单、创建来源、责任人等扩展信息。"
+        },
+        {
+          "display": "spec:",
+          "path": "spec",
+          "indent": 0,
+          "comment": "Namespace 附加规格",
+          "type": "Object"
+        },
+        {
+          "display": "finalizers:",
+          "path": "spec.finalizers",
+          "indent": 1,
+          "comment": "删除保护或系统清理钩子",
+          "type": "[]string",
+          "description": "通常由系统控制器写入，用于在删除 Namespace 时完成资源清理。"
+        },
+        {
+          "display": "- kubernetes",
+          "path": "spec.finalizers[]",
+          "indent": 2,
+          "comment": "系统默认 finalizer",
           "type": "string"
         }
       ]

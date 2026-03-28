@@ -1,0 +1,3450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>K8s YAML 配置向导</title>
+  <script src="./js/vue.global.prod.js"></script>
+  <script src="./js/tailwindcss.cdn.js"></script>
+  <link rel="stylesheet" href="./css/highlight.github.min.css" />
+  <script src="./js/highlight.common.min.js"></script>
+  <script src="./js/highlight.yaml.min.js"></script>
+  <script src="./js/js-yaml.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            k8s: '#326CE5',
+            k8sDark: '#2457b5',
+            pageBg: '#f6f8fc'
+          },
+          boxShadow: {
+            panel: '0 18px 48px rgba(15, 23, 42, 0.08)'
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    code, pre, .mono { font-family: 'JetBrains Mono', 'Consolas', monospace; }
+    [v-cloak] { display: none; }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+    .panel {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 24px;
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+    }
+
+    .tab-btn {
+      transition: all 0.18s ease;
+    }
+    .tab-btn.active {
+      background: #326CE5;
+      border-color: #326CE5;
+      color: #ffffff;
+      box-shadow: 0 10px 24px rgba(50, 108, 229, 0.22);
+    }
+
+    .doc-item {
+      transition: all 0.18s ease;
+      border: 1px solid #e2e8f0;
+    }
+    .doc-item:hover {
+      border-color: #cbd5e1;
+      background: #ffffff;
+    }
+    .doc-item.active {
+      border-color: rgba(50, 108, 229, 0.4);
+      background: linear-gradient(90deg, rgba(50, 108, 229, 0.08) 0%, rgba(50, 108, 229, 0.02) 100%);
+      box-shadow: inset 0 0 0 1px rgba(50, 108, 229, 0.08);
+    }
+
+    .field-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      background: #f8fafc;
+      transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    }
+    .field-card:hover {
+      border-color: #cbd5e1;
+      background: #ffffff;
+    }
+    .field-card.enabled {
+      border-color: #bfdbfe;
+      background: #f8fbff;
+    }
+
+    .preview-shell {
+      position: sticky;
+      top: 96px;
+    }
+
+    .builder-layout {
+      display: grid;
+      gap: 24px;
+    }
+
+    .analysis-grid {
+      display: grid;
+      gap: 24px;
+    }
+
+    .collapse-trigger {
+      transition: all 0.18s ease;
+    }
+    .collapse-trigger:hover {
+      background: #f8fafc;
+    }
+
+    .compare-shell {
+      background: #f8fafc;
+    }
+    .compare-content {
+      min-width: max-content;
+    }
+    .compare-line {
+      display: grid;
+      grid-template-columns: 56px auto auto;
+      gap: 12px;
+      align-items: start;
+      padding: 2px 18px;
+      min-height: 28px;
+      width: max-content;
+      min-width: 100%;
+      color: #0f172a;
+      transition: background 0.14s ease;
+    }
+    .compare-line.clickable {
+      cursor: pointer;
+    }
+    .compare-line.clickable:hover {
+      background: rgba(59, 130, 246, 0.12);
+    }
+    .compare-line.active {
+      background: rgba(50, 108, 229, 0.12);
+      box-shadow: inset 3px 0 0 #60a5fa;
+    }
+    .compare-line.issue {
+      background: rgba(245, 158, 11, 0.12);
+      box-shadow: inset 3px 0 0 #f59e0b;
+    }
+    .compare-line.unknown {
+      background: rgba(239, 68, 68, 0.11);
+      box-shadow: inset 3px 0 0 #ef4444;
+    }
+    .compare-line.active.issue {
+      background: rgba(245, 158, 11, 0.18);
+    }
+    .compare-line.active.unknown {
+      background: rgba(239, 68, 68, 0.17);
+    }
+    .compare-line.dimmed {
+      color: #64748b;
+    }
+    .compare-line-no {
+      color: #94a3b8;
+      user-select: none;
+      text-align: right;
+      padding-top: 1px;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    .compare-line-text {
+      white-space: pre;
+      word-break: normal;
+      overflow-wrap: normal;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .compare-line-flag {
+      align-self: center;
+      white-space: nowrap;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 10px;
+      line-height: 1.4;
+      font-weight: 600;
+    }
+    .compare-line-flag.warning {
+      background: #fffbeb;
+      color: #b45309;
+      border: 1px solid #fcd34d;
+    }
+    .compare-line-flag.danger {
+      background: #fff1f2;
+      color: #be123c;
+      border: 1px solid #fda4af;
+    }
+
+    .detail-backdrop {
+      background: rgba(15, 23, 42, 0.42);
+      backdrop-filter: blur(8px);
+    }
+    .compare-line-text .inline-comment {
+      color: #94a3b8;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      border: 3px solid #dbeafe;
+      border-top-color: #326CE5;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .hljs {
+      background: #f6f8fa !important;
+      color: #0f172a !important;
+      border-radius: 0 0 20px 20px;
+      padding: 18px !important;
+    }
+
+    .toast-anim {
+      animation: toastIn 0.24s ease, toastOut 0.3s ease 1.6s forwards;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-12px); }
+    }
+
+    @media (min-width: 1280px) {
+      .builder-layout {
+        grid-template-columns: 290px minmax(0, 1fr) 420px;
+      }
+
+      .analysis-grid {
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+      }
+    }
+  </style>
+</head>
+<body class="bg-pageBg text-slate-800">
+<div id="app" v-cloak class="min-h-screen">
+  <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
+    <div class="mx-auto flex max-w-[1700px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <div class="min-w-0">
+        <div class="flex items-center gap-3">
+          <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-k8s text-white shadow-lg shadow-blue-950/20">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0L1.5 6v12L12 24l10.5-6V6L12 0zm0 2.18l8.5 4.9v9.84L12 21.82l-8.5-4.9V7.08L12 2.18z"></path>
+              <path d="M12 6a1 1 0 00-.5.13l-4 2.31a1 1 0 00-.5.87v4.38a1 1 0 00.5.87l4 2.31a1 1 0 001 0l4-2.31a1 1 0 00.5-.87V9.31a1 1 0 00-.5-.87l-4-2.31A1 1 0 0012 6z"></path>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h1 class="truncate text-lg font-bold text-slate-900 sm:text-xl">K8s YAML 配置向导</h1>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <a href="./index.html" class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:border-slate-300 hover:text-slate-900">
+          返回速查手册
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8">
+    <div v-if="loading" class="flex min-h-[60vh] flex-col items-center justify-center gap-4">
+      <div class="loading-spinner"></div>
+      <p class="text-sm text-slate-500">正在加载配置字典与骨架数据...</p>
+    </div>
+
+    <div v-else-if="loadError" class="panel mx-auto max-w-3xl px-8 py-12 text-center">
+      <h2 class="text-xl font-semibold text-slate-800">页面初始化失败</h2>
+      <p class="mt-3 text-sm leading-7 text-slate-500">{{ loadError }}</p>
+      <button type="button" class="mt-6 rounded-2xl bg-k8s px-4 py-2 text-sm font-medium text-white hover:bg-k8sDark" @click="loadData">
+        重新加载
+      </button>
+    </div>
+
+    <template v-else>
+      <section class="panel px-5 py-5 sm:px-6">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div class="min-w-0">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Workflow</p>
+            <h2 class="mt-1 text-xl font-semibold text-slate-900">生成 YAML 或导入分析</h2>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400">核心资源</p>
+              <p class="mt-1 text-xl font-bold text-slate-900">{{ resourceList.length }}</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400">字段说明</p>
+              <p class="mt-1 text-xl font-bold text-slate-900">{{ totalDictEntries }}</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400">当前 YAML 资源</p>
+              <p class="mt-1 text-xl font-bold text-slate-900">{{ builderResources.length }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="tab-btn rounded-2xl border px-4 py-2.5 text-sm font-medium"
+            :class="activeTab === 'build' ? 'active' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900'"
+            @click="activeTab = 'build'"
+          >
+            生成 YAML
+          </button>
+          <button
+            type="button"
+            class="tab-btn rounded-2xl border px-4 py-2.5 text-sm font-medium"
+            :class="activeTab === 'analyze' ? 'active' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900'"
+            @click="activeTab = 'analyze'"
+          >
+            导入分析
+          </button>
+        </div>
+      </section>
+
+      <section v-if="activeTab === 'build'" class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(380px,1fr)]">
+        <section class="space-y-6">
+          <div class="panel px-5 py-5 sm:px-6">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div class="min-w-0">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Build Mode</p>
+                <h3 class="mt-1 text-xl font-semibold text-slate-900">配置引导</h3>
+                <!-- <p class="mt-2 max-w-4xl text-base leading-7 text-slate-600">
+                  左侧只负责当前步骤的渐进式填写，右侧固定实时显示最终 YAML。你不再需要来回切换“最后一步预览”，表单任何变化都会直接反映在右侧。
+                </p> -->
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-500">当前 YAML · {{ builderResources.length }} 个资源</span>
+                <span v-if="activeBuilder" class="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs text-blue-700">{{ activeBuilder.kindName }}</span>
+              </div>
+            </div>
+
+            <div class="mt-5 grid gap-3 md:grid-cols-4">
+              <button
+                v-for="step in buildSteps"
+                :key="'step-inline-' + step.id"
+                type="button"
+                class="rounded-2xl border px-4 py-4 text-left transition-all"
+                :class="buildStepButtonClass(step.id)"
+                :disabled="!canOpenBuildStep(step.id)"
+                @click="goBuildStep(step.id)"
+              >
+                <div class="flex items-start gap-3">
+                  <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-xs font-bold" :class="buildStepBadgeClass(step.id)">
+                    {{ step.id }}
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-sm font-semibold text-slate-900">{{ step.title }}</p>
+                    <p class="mt-1 text-xs leading-5 text-slate-500">{{ step.description }}</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+          </div>
+
+          <div v-if="buildWizardAlerts.length" class="space-y-3">
+            <div
+              v-for="(alert, idx) in buildWizardAlerts"
+              :key="'build-alert-' + idx + '-' + alert.message"
+              class="rounded-2xl border px-4 py-4"
+              :class="alert.level === 'warning' ? 'border-amber-200 bg-amber-50' : 'border-blue-200 bg-blue-50'"
+            >
+              <p class="text-sm font-semibold" :class="alert.level === 'warning' ? 'text-amber-800' : 'text-blue-800'">{{ alert.title }}</p>
+              <p class="mt-2 text-sm leading-6" :class="alert.level === 'warning' ? 'text-amber-700' : 'text-blue-700'">{{ alert.message }}</p>
+            </div>
+          </div>
+
+          <div v-if="buildWizardStep === 1" class="panel px-5 py-5 sm:px-6">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div class="min-w-0">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Step 1</p>
+                <h3 class="mt-1 text-xl font-semibold text-slate-900">先选择这份 YAML 里要包含哪些核心资源</h3>
+                <p class="mt-2 max-w-4xl text-base leading-7 text-slate-600">
+                  一份配置文件可以同时包含多个 Core Resource，例如 `Deployment + Service + Ingress`。先把资源清单建好，后面每一步都会围绕当前选中的资源继续引导。
+                </p>
+              </div>
+            </div>
+
+            <div class="mt-5 grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+              <div class="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <label class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">向当前 YAML 添加资源</label>
+                <select v-model="newResourceKey" class="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-base text-slate-700 focus:border-k8s focus:outline-none focus:ring-2 focus:ring-k8s/20">
+                  <option v-for="resource in resourceList" :key="'new-' + resource.key" :value="resource.key">
+                    {{ resource.kindName }} / {{ resource.key }}
+                  </option>
+                </select>
+                <button type="button" class="mt-3 w-full rounded-2xl bg-k8s px-4 py-3.5 text-sm font-medium text-white hover:bg-k8sDark" @click="addBuilderResource(newResourceKey)">
+                  添加资源到当前 YAML
+                </button>
+              </div>
+
+              <div>
+                <div v-if="builderResources.length" class="grid gap-3 md:grid-cols-2">
+                  <article
+                    v-for="doc in builderResources"
+                    :key="doc.id"
+                    class="doc-item rounded-2xl px-4 py-4"
+                    :class="{ active: activeBuilderId === doc.id }"
+                  >
+                    <div class="flex items-start justify-between gap-3">
+                      <button type="button" class="min-w-0 flex-1 text-left" @click="activeBuilderId = doc.id">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <span class="rounded-lg bg-slate-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-100">{{ doc.kindName }}</span>
+                          <span class="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] text-slate-500">{{ doc.resourceKey }}</span>
+                          <span v-if="doc.imported" class="rounded-lg bg-blue-50 px-2.5 py-1 text-[10px] text-blue-600">导入回填</span>
+                        </div>
+                        <p class="mt-3 truncate text-sm font-semibold text-slate-900">{{ getBuilderDocumentName(doc) }}</p>
+                        <p class="mt-1 truncate text-xs text-slate-500">{{ getBuilderDocumentNamespace(doc) }}</p>
+                      </button>
+                      <button
+                        type="button"
+                        class="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                        @click="removeBuilderResource(doc.id)"
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </article>
+                </div>
+
+                <div v-else class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
+                  <p class="text-sm font-medium text-slate-700">当前 YAML 还没有资源</p>
+                  <p class="mt-2 text-sm leading-6 text-slate-500">先选择一个 `kind` 并添加资源，再进入后续 Metadata / Spec / Advanced 步骤。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-else-if="!activeBuilder" class="panel px-6 py-10 text-center">
+            <h3 class="text-lg font-semibold text-slate-800">请先回到步骤 1 选择资源</h3>
+            <p class="mt-3 text-sm leading-7 text-slate-500">当前 YAML 还没有可编辑资源，所以暂时无法继续后面的配置引导。</p>
+            <button type="button" class="mt-5 rounded-2xl bg-k8s px-4 py-3 text-sm font-medium text-white hover:bg-k8sDark" @click="goBuildStep(1)">
+              返回步骤 1
+            </button>
+          </div>
+
+          <div v-else class="panel overflow-hidden">
+            <div ref="buildStepTopEl" class="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-5 py-4 shadow-sm backdrop-blur sm:px-6">
+              <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0">
+                  <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">当前步骤</p>
+                  <div class="mt-1 flex flex-wrap items-center gap-3">
+                    <h3 class="text-xl font-semibold text-slate-900">{{ currentBuildStepMeta.title }}</h3>
+                    <span class="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[11px] font-medium text-blue-700">Step {{ buildWizardStep }}</span>
+                  </div>
+                  <p class="mt-2 max-w-4xl text-sm leading-6 text-slate-600">{{ currentBuildStepMeta.longDescription }}</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="buildWizardStep === 1"
+                    @click="prevBuildStep"
+                  >
+                    上一步
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-2xl bg-k8s px-3 py-2 text-sm font-medium text-white hover:bg-k8sDark disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="!canAdvanceBuildStep"
+                    @click="nextBuildStep"
+                  >
+                    {{ buildWizardStep === buildSteps.length ? '已到最后一步' : '下一步' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="!canAppendResourceToYaml"
+                    @click="appendNextResourceToYaml"
+                  >
+                    继续添加资源
+                  </button>
+                  <input
+                    v-model.trim="stepFieldSearch"
+                    type="text"
+                    class="w-full min-w-[240px] flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-k8s focus:outline-none focus:ring-2 focus:ring-k8s/20 sm:w-auto"
+                    placeholder="搜索当前步骤参数，如 port / selector / 注解"
+                  />
+                  <label class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                    <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-k8s focus:ring-k8s/20" v-model="showOptionalStepFields" />
+                    显示当前步骤的可选字段
+                  </label>
+                </div>
+              </div>
+              <div v-if="builderResources.length" class="mt-4">
+                <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">当前 YAML 内资源</p>
+                <div class="flex flex-nowrap gap-2 overflow-x-auto pb-1">
+                  <button
+                    v-for="doc in builderResources"
+                    :key="'step-doc-nav-' + doc.id"
+                    type="button"
+                    class="flex-shrink-0 rounded-2xl border px-3 py-2 text-left transition-colors"
+                    :class="activeBuilderId === doc.id ? 'border-k8s bg-blue-50 text-k8s' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900'"
+                    @click="activateBuilderDocument(doc.id)"
+                  >
+                    <p class="text-xs font-semibold">{{ doc.kindName }}</p>
+                    <p class="mt-0.5 max-w-[180px] truncate text-[11px] opacity-80">{{ getBuilderDocumentName(doc) }}</p>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="px-5 py-5 sm:px-6">
+              <div class="mb-5 flex flex-wrap items-center gap-2">
+                <span class="rounded-lg bg-slate-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-100">{{ activeBuilder.kindName }}</span>
+                <span class="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] text-slate-500">{{ activeBuilder.resourceKey }}</span>
+                <span v-if="activeBuilder.imported" class="rounded-lg bg-blue-50 px-2.5 py-1 text-[10px] text-blue-600">导入回填</span>
+                <span class="rounded-lg bg-emerald-50 px-2.5 py-1 text-[10px] text-emerald-600">{{ currentBuildStepVisibleLines.length }} fields</span>
+              </div>
+
+              <div v-if="currentBuildStepContextHints.length" class="mb-4 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-slate-50 px-4 py-3.5">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-700 border border-blue-100">自动骨架</span>
+                  <p class="text-sm font-medium text-slate-700">以下层级会自动生成</p>
+                </div>
+                <div class="mt-2.5 flex flex-wrap gap-2">
+                  <span
+                    v-for="hint in currentBuildStepContextHints"
+                    :key="'step-hint-' + hint"
+                    class="rounded-full border border-blue-100 bg-white px-3 py-1.5 text-xs text-slate-600 mono shadow-sm"
+                  >
+                    {{ hint }}
+                  </span>
+                </div>
+              </div>
+
+              <div v-if="currentBuildStepVisibleLines.length" class="space-y-3">
+                <section
+                  v-for="(line, idx) in currentBuildStepVisibleLines"
+                  :key="'step-line-' + line.lineKey"
+                  class="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+                  :class="line.required || line.enabled ? '' : 'opacity-70'"
+                >
+                  <div
+                    class="flex w-full flex-wrap items-start justify-between gap-3 px-4 py-3.5 text-left sm:px-4"
+                    @click="toggleFieldCard(line)"
+                  >
+                    <div class="min-w-0 max-w-4xl">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">字段</p>
+                        <span v-if="!line.required" class="rounded-full px-2.5 py-1 text-[10px] border" :class="line.enabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-500'">
+                          {{ line.enabled ? '已启用' : '可选未启用' }}
+                        </span>
+                      </div>
+                      <div class="mt-1 flex flex-wrap items-center gap-2">
+                        <h4 class="text-base font-semibold text-slate-900">{{ stepFieldQuestion(line) }}</h4>
+                        <code class="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-500 mono">{{ quickFieldLabel(line) }}</code>
+                      </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2" @click.stop>
+                      <div
+                        v-if="!line.required"
+                        class="inline-flex items-center gap-2.5 rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition-colors"
+                        :class="line.enabled ? 'border-blue-200 bg-blue-50 text-k8s' : 'border-slate-200 bg-slate-50 text-slate-500'"
+                      >
+                        <span>{{ line.enabled ? '已启用' : '未启用' }}</span>
+                        <button
+                          type="button"
+                          role="switch"
+                          :aria-checked="line.enabled ? 'true' : 'false'"
+                          class="relative inline-flex h-6 w-11 items-center rounded-full border transition-all focus:outline-none focus:ring-2 focus:ring-k8s/20"
+                          :class="line.enabled ? 'border-k8s bg-k8s' : 'border-slate-300 bg-white'"
+                          @click.stop="toggleLine(line)"
+                        >
+                          <span
+                            class="inline-block h-5 w-5 rounded-full border bg-white shadow-sm transition-transform"
+                            :class="line.enabled ? 'translate-x-5 border-k8s/20' : 'translate-x-0.5 border-slate-200'"
+                          ></span>
+                        </button>
+                      </div>
+                      <span v-else class="rounded-xl border border-k8s/20 bg-blue-50 px-2.5 py-1.5 text-[11px] font-medium text-k8s">必填</span>
+                      <span class="rounded-full bg-white px-2.5 py-1 text-[10px] text-slate-500 border border-slate-200">{{ line.type || 'Field' }}</span>
+                    </div>
+                  </div>
+
+                  <div class="border-t border-slate-200 px-4 py-3 sm:px-4">
+                  <div class="max-w-3xl" :class="line.enabled || line.required ? '' : 'opacity-60'">
+                    <template v-if="line.inputKind === 'select'">
+                      <select
+                        class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-k8s focus:outline-none focus:ring-2 focus:ring-k8s/20"
+                        :value="line.value"
+                        :disabled="!line.enabled && !line.required"
+                        @change="updateLineValue(line, $event.target.value)"
+                      >
+                        <option value="">请选择一个值</option>
+                        <option v-for="option in line.options" :key="line.lineKey + '-option-' + option" :value="option">{{ option }}</option>
+                      </select>
+                    </template>
+
+                    <template v-else-if="line.inputKind === 'boolean'">
+                      <label class="inline-flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          class="h-4 w-4 rounded border-slate-300 text-k8s focus:ring-k8s/20"
+                          :checked="Boolean(line.value)"
+                          :disabled="!line.enabled && !line.required"
+                          @change="updateLineValue(line, $event.target.checked)"
+                        />
+                        <span>{{ Boolean(line.value) ? 'true' : 'false' }}</span>
+                      </label>
+                    </template>
+
+                    <template v-else-if="line.inputKind === 'number'">
+                      <input
+                        type="number"
+                        class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-k8s focus:outline-none focus:ring-2 focus:ring-k8s/20"
+                        :value="line.value"
+                        :disabled="!line.enabled && !line.required"
+                        @input="updateLineValue(line, $event.target.value)"
+                      />
+                    </template>
+
+                    <template v-else-if="line.inputKind === 'block'">
+                      <textarea
+                        class="min-h-[96px] w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700 focus:border-k8s focus:outline-none focus:ring-2 focus:ring-k8s/20 mono"
+                        :value="line.customBlock"
+                        :disabled="!line.enabled && !line.required"
+                        :placeholder="stepFieldPlaceholder(line)"
+                        @input="updateCustomBlock(line, $event.target.value)"
+                      ></textarea>
+                    </template>
+
+                    <template v-else-if="line.inputKind !== 'none'">
+                      <input
+                        type="text"
+                        class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 focus:border-k8s focus:outline-none focus:ring-2 focus:ring-k8s/20"
+                        :value="line.value"
+                        :disabled="!line.enabled && !line.required"
+                        @input="updateLineValue(line, $event.target.value)"
+                      />
+                    </template>
+
+                    <div v-if="showSmartBindingForLine(line)" class="mt-2.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
+                      <p class="text-sm font-semibold text-blue-800">智能联动</p>
+                      <div class="mt-2.5 flex flex-wrap gap-2">
+                        <button
+                          v-for="binding in smartBindingCandidates"
+                          :key="'binding-' + binding.id"
+                          type="button"
+                          class="rounded-2xl border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                          @click="applySmartBinding(line, binding)"
+                        >
+                          关联现有 {{ binding.kindName }}: {{ binding.name }}
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                  </div>
+
+                  <div v-if="!isFieldCardCollapsed(line)" class="border-t border-slate-100 bg-slate-50/70 px-4 py-3 sm:px-4">
+                  <div class="max-w-3xl">
+                    <code class="block break-all text-[11px] text-slate-500 mono">{{ line.path || line.originalDisplay }}</code>
+                    <p class="text-sm leading-6 text-slate-600">{{ line.description }}</p>
+                    <p class="mt-2 text-[12px] leading-5 text-slate-500 mono">{{ fieldLinePreview(line) }}</p>
+                  </div>
+                  </div>
+                </section>
+              </div>
+
+              <div v-else class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
+                <p class="text-sm font-medium text-slate-700">当前步骤没有需要默认展示的字段</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="preview-shell">
+          <div class="panel overflow-hidden sticky top-24">
+            <div class="border-b border-slate-200 bg-slate-50 px-5 py-4">
+              <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0">
+                  <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Live Preview</p>
+                  <h3 class="mt-1 text-lg font-semibold text-slate-900">实时 YAML 预览</h3>
+                </div>
+
+                <label class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+                  <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-k8s focus:ring-k8s/20" v-model="includeComments" />
+                  带注释
+                </label>
+              </div>
+
+              <div class="mt-4 flex flex-wrap gap-2">
+                <button type="button" class="rounded-2xl bg-k8s px-4 py-2 text-sm font-medium text-white hover:bg-k8sDark" @click="copyBuildYaml">
+                  复制全部 YAML
+                </button>
+                <button type="button" class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:border-slate-300 hover:text-slate-900" @click="downloadBuildYaml">
+                  导出全部 YAML
+                </button>
+                <button type="button" class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" @click="sendBuildYamlToAnalyzer">
+                  分析全部 YAML
+                </button>
+              </div>
+            </div>
+
+            <div class="px-5 py-4 text-xs text-slate-500 border-b border-slate-200 bg-white">
+              当前 YAML 共 {{ buildPreviewDocs.length }} 个资源，复制与导出时会自动使用 `---` 合并。
+            </div>
+
+            <div v-if="buildWizardAlerts.length" class="border-b border-slate-200 bg-white px-5 py-4 space-y-3">
+              <div
+                v-for="(alert, idx) in buildWizardAlerts"
+                :key="'preview-alert-' + idx + '-' + alert.message"
+                class="rounded-2xl border px-4 py-4"
+                :class="alert.level === 'warning' ? 'border-amber-200 bg-amber-50' : 'border-blue-200 bg-blue-50'"
+              >
+                <p class="text-sm font-semibold" :class="alert.level === 'warning' ? 'text-amber-800' : 'text-blue-800'">{{ alert.title }}</p>
+                <p class="mt-2 text-sm leading-6" :class="alert.level === 'warning' ? 'text-amber-700' : 'text-blue-700'">{{ alert.message }}</p>
+              </div>
+            </div>
+
+            <div v-if="buildPreviewDocs.length" ref="previewCodeEl" class="max-h-[72vh] overflow-auto divide-y divide-slate-200">
+              <section
+                v-for="doc in buildPreviewDocs"
+                :key="'preview-doc-' + doc.id"
+                class="bg-white"
+              >
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+                  :class="activeBuilderId === doc.id ? 'cursor-default bg-slate-50' : 'hover:bg-slate-50'"
+                  @click="activateBuilderDocument(doc.id)"
+                >
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="rounded-lg bg-slate-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-100">{{ doc.kindName }}</span>
+                      <span class="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] text-slate-500">{{ doc.resourceKey }}</span>
+                      <span v-if="activeBuilderId === doc.id" class="rounded-lg bg-blue-50 px-2.5 py-1 text-[10px] text-blue-700">当前编辑</span>
+                    </div>
+                    <p class="mt-2 truncate text-sm font-semibold text-slate-900">{{ getBuilderDocumentName(doc) }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ getBuilderDocumentNamespace(doc) }}</p>
+                  </div>
+                  <span
+                    class="rounded-xl border px-3 py-2 text-xs font-medium"
+                    :class="activeBuilderId === doc.id ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600'"
+                  >
+                    {{ activeBuilderId === doc.id ? '当前展开' : '切换查看' }}
+                  </span>
+                </button>
+                <div v-if="activeBuilderId === doc.id" class="border-t border-slate-200">
+                  <pre class="!m-0 px-5 py-4 text-[13px] leading-6"><code class="language-yaml">{{ doc.yaml }}</code></pre>
+                </div>
+              </section>
+            </div>
+            <div v-else class="px-5 py-10 text-center text-sm text-slate-500">
+              还没有可导出的 YAML。先从左侧完成当前步骤的配置。
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section v-else class="mt-6 space-y-6">
+        <div class="panel overflow-hidden">
+            <button
+              type="button"
+              class="collapse-trigger flex w-full items-center justify-between gap-4 px-5 py-5 text-left sm:px-6"
+              @click="analysisImportOpen = !analysisImportOpen"
+            >
+              <div class="min-w-0">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Import</p>
+                <h3 class="mt-1 text-lg font-semibold text-slate-900">粘贴或上传 YAML</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-500">
+                  支持多文档 YAML，也支持一个文件中包含多个核心资源。若 YAML 语法有错误，会直接给出解析位置；若参数未被当前知识库收录，会被单独标记出来。
+                </p>
+              </div>
+              <span class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600">
+                {{ analysisImportOpen ? '收起' : '展开' }}
+              </span>
+            </button>
+
+            <div v-if="analysisImportOpen" class="border-t border-slate-200 px-5 py-5 sm:px-6">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-slate-700">导入内容</p>
+                <p class="mt-1 text-sm leading-6 text-slate-500">这里的原文会直接作为左侧对比框内容，注释和格式会尽量原样保留。</p>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+                <input
+                  ref="yamlFileInput"
+                  type="file"
+                  accept=".yaml,.yml,text/yaml,text/plain"
+                  class="hidden"
+                  @change="handleYamlFileChange"
+                />
+                <button type="button" class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:border-slate-300 hover:text-slate-900" @click="openYamlFilePicker">
+                  选择文件
+                </button>
+                <button type="button" class="rounded-2xl bg-k8s px-4 py-2 text-sm font-medium text-white hover:bg-k8sDark" @click="analyzeYamlInput">
+                  分析 YAML
+                </button>
+                <button type="button" class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" @click="importAllAnalysisToBuilder">
+                  全部回填到向导
+                </button>
+              </div>
+            </div>
+
+            <div v-if="importedFileName" class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+              已加载文件：<span class="font-medium text-slate-700">{{ importedFileName }}</span>
+            </div>
+
+            <div class="mt-5">
+              <textarea
+                v-model="analysisInput"
+                class="min-h-[320px] w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-700 focus:border-k8s focus:outline-none focus:ring-2 focus:ring-k8s/20 mono"
+                placeholder="在这里粘贴一个或多个 Kubernetes YAML 文档。支持用 --- 分隔多个核心资源。"
+              ></textarea>
+            </div>
+
+            <div v-if="analysisError" class="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
+              <p class="text-sm font-semibold text-rose-700">YAML 解析失败</p>
+              <p class="mt-2 text-sm leading-6 text-rose-600">{{ analysisError }}</p>
+            </div>
+            </div>
+        </div>
+
+        <div v-if="analysisResults.length" class="space-y-6">
+          <div class="panel overflow-hidden">
+            <button
+              type="button"
+              class="collapse-trigger flex w-full items-center justify-between gap-4 px-5 py-5 text-left sm:px-6"
+              @click="analysisOverviewOpen = !analysisOverviewOpen"
+            >
+              <div class="min-w-0">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Overview</p>
+                <h3 class="mt-1 text-lg font-semibold text-slate-900">分析概览与文档摘要</h3>
+              </div>
+              <span class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600">
+                {{ analysisOverviewOpen ? '收起' : '展开' }}
+              </span>
+            </button>
+
+            <div v-if="analysisOverviewOpen" class="border-t border-slate-200 px-5 py-5 sm:px-6">
+            <div class="flex flex-wrap gap-2">
+              <button type="button" class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:border-slate-300 hover:text-slate-900" @click="copyAnalysisSourceYaml">
+                复制左侧原文
+              </button>
+              <button type="button" class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100" @click="copyAnnotatedAnalysisYaml">
+                复制右侧注释版
+              </button>
+            </div>
+
+            <div class="mt-5 grid gap-3 xl:grid-cols-3">
+              <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 xl:col-span-3">
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400">文档数量</p>
+                    <p class="mt-1 text-2xl font-bold text-slate-900">{{ analysisSummary.documents }}</p>
+                  </div>
+                  <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400">识别资源</p>
+                    <p class="mt-1 text-2xl font-bold text-slate-900">{{ analysisSummary.recognized }}</p>
+                  </div>
+                  <div class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-[0.16em] text-rose-500">未知字段</p>
+                    <p class="mt-1 text-2xl font-bold text-rose-700">{{ analysisSummary.unknown }}</p>
+                  </div>
+                  <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                    <p class="text-[10px] uppercase tracking-[0.16em] text-amber-500">问题提示</p>
+                    <p class="mt-1 text-2xl font-bold text-amber-700">{{ analysisSummary.issues }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <article
+                v-for="doc in analysisResults"
+                :key="'analysis-summary-' + doc.index"
+                class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4"
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="rounded-lg bg-slate-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-100">{{ doc.kindName || 'Unknown' }}</span>
+                  <span class="rounded-lg bg-slate-100 px-2.5 py-1 text-[10px] text-slate-500">Doc {{ doc.index + 1 }}</span>
+                  <span v-if="doc.resourceKey" class="rounded-lg bg-blue-50 px-2.5 py-1 text-[10px] text-blue-600">{{ doc.resourceKey }}</span>
+                </div>
+                <h4 class="mt-3 text-base font-semibold text-slate-900">{{ doc.name || '未命名资源' }}</h4>
+                <p class="mt-1 text-sm text-slate-500">{{ doc.namespace || 'default' }} · {{ doc.apiVersion || '无 apiVersion' }}</p>
+                <div class="mt-4 flex flex-wrap gap-2 text-[11px]">
+                  <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-slate-500">已识别 {{ doc.knownFields.length }}</span>
+                  <span class="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-rose-600">未知 {{ doc.unknownFields.length }}</span>
+                  <span class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">问题 {{ doc.issues.length }}</span>
+                </div>
+                <div class="mt-4 flex flex-wrap gap-2">
+                  <button
+                    v-if="doc.resourceKey"
+                    type="button"
+                    class="rounded-2xl border border-blue-200 bg-white px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50"
+                    @click="importAnalysisDocument(doc.index)"
+                  >
+                    回填到向导
+                  </button>
+                </div>
+              </article>
+            </div>
+            </div>
+          </div>
+
+          <div class="grid gap-6 xl:grid-cols-2">
+            <section class="panel overflow-hidden">
+              <div class="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Source YAML</p>
+                <h4 class="mt-1 text-base font-semibold text-slate-900">左侧原始导入 YAML</h4>
+                <p class="mt-2 text-sm leading-6 text-slate-500">这里保留你导入时的原始文本与原注释，不做结构改写。</p>
+              </div>
+              <div class="compare-shell max-h-[78vh] overflow-auto py-3">
+                <div class="compare-content">
+                  <div
+                    v-for="line in analysisSourceLines"
+                    :key="'source-line-' + line.lineNumber"
+                    class="compare-line mono"
+                    :class="{
+                      clickable: line.clickable,
+                      active: line.normalizedPath && line.normalizedPath === activeComparePath,
+                      dimmed: !line.clickable,
+                      issue: getCompareLineMeta(line).tone === 'warning',
+                      unknown: getCompareLineMeta(line).tone === 'danger'
+                    }"
+                    @click="selectComparePath(line)"
+                  >
+                    <div class="compare-line-no">{{ line.lineNumber }}</div>
+                    <div class="compare-line-text">{{ line.raw || ' ' }}</div>
+                    <span v-if="getCompareLineMeta(line).label" class="compare-line-flag" :class="getCompareLineMeta(line).tone">{{ getCompareLineMeta(line).label }}</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel overflow-hidden">
+              <div class="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Annotated YAML</p>
+                <h4 class="mt-1 text-base font-semibold text-slate-900">右侧解析注释版 YAML</h4>
+                <p class="mt-2 text-sm leading-6 text-slate-500">每一行都会尽量补上对应字段的中文说明；未知字段会明确标记为未收录。</p>
+              </div>
+              <div v-if="analysisAnnotatedYaml" class="compare-shell max-h-[78vh] overflow-auto py-3">
+                <div class="compare-content">
+                  <div
+                    v-for="line in analysisAnnotatedLines"
+                    :key="'annotated-line-' + line.lineNumber"
+                    class="compare-line mono"
+                    :class="{
+                      clickable: line.clickable,
+                      active: line.normalizedPath && line.normalizedPath === activeComparePath,
+                      dimmed: !line.clickable,
+                      issue: getCompareLineMeta(line).tone === 'warning',
+                      unknown: getCompareLineMeta(line).tone === 'danger'
+                    }"
+                    @click="handleAnnotatedLineClick(line)"
+                  >
+                    <div class="compare-line-no">{{ line.lineNumber }}</div>
+                    <div class="compare-line-text">{{ line.raw || ' ' }}</div>
+                    <span v-if="getCompareLineMeta(line).label" class="compare-line-flag" :class="getCompareLineMeta(line).tone">{{ getCompareLineMeta(line).label }}</span>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="px-5 py-10 text-center text-sm text-slate-500">
+                先完成 YAML 分析，右侧才会生成逐行注释版内容。
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </template>
+  </main>
+
+  <transition name="fade">
+    <div v-if="activeManualDetail" class="detail-backdrop fixed inset-0 z-40 flex items-center justify-center p-4 sm:p-6" @click.self="closeManualDetail">
+      <div class="panel max-h-[88vh] w-full max-w-4xl overflow-hidden">
+        <div class="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 sm:px-6">
+          <div class="min-w-0">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Field Detail</p>
+            <h3 class="mt-1 text-lg font-semibold text-slate-900">{{ activeManualDetail.displayPath }}</h3>
+            <p class="mt-2 text-sm leading-6 text-slate-500">
+              {{ activeManualDetail.type || 'Field' }}
+              <span v-if="activeManualDetail.matchType === 'ancestor'"> · 当前行引用上层已收录字段说明</span>
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:border-slate-300 hover:text-slate-900"
+            @click="closeManualDetail"
+          >
+            关闭
+          </button>
+        </div>
+
+        <div class="max-h-[calc(88vh-88px)] overflow-auto px-5 py-5 sm:px-6">
+          <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+            <p class="text-sm leading-7 text-slate-700">{{ activeManualDetail.description || '当前字段暂无更详细说明。' }}</p>
+          </div>
+
+          <div v-if="activeManualDetail.demo" class="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+            <div class="border-b border-slate-200 bg-slate-50 px-4 py-3">
+              <p class="text-sm font-semibold text-slate-800">速查手册 YAML Demo</p>
+            </div>
+            <pre class="overflow-auto bg-white px-4 py-4 text-[13px] leading-6 text-slate-800 mono">{{ activeManualDetail.demo }}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <transition name="fade">
+    <div v-if="toastVisible" class="fixed bottom-6 right-6 z-50 toast-anim">
+      <div class="rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white shadow-2xl flex items-center gap-2">
+        <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M4.5 12.75l6 6 9-13.5"></path>
+        </svg>
+        {{ toastMessage }}
+      </div>
+    </div>
+  </transition>
+</div>
+
+<script>
+const appRoot = document.getElementById('app');
+
+function showBootstrapError(message) {
+  if (!appRoot) return;
+  appRoot.removeAttribute('v-cloak');
+  appRoot.innerHTML = `
+    <div class="min-h-screen bg-pageBg px-4 py-10 text-slate-800 sm:px-6 lg:px-8">
+      <div class="mx-auto max-w-3xl rounded-3xl border border-rose-200 bg-white px-6 py-8 shadow-lg">
+        <h1 class="text-xl font-semibold text-slate-900">页面依赖加载失败</h1>
+        <p class="mt-3 text-sm leading-7 text-slate-600">${message}</p>
+        <p class="mt-2 text-sm leading-7 text-slate-500">请刷新重试；如果仍然失败，请稍后再试或检查当前网络对 CDN 的访问。</p>
+      </div>
+    </div>
+  `;
+}
+
+if (!window.Vue) {
+  showBootstrapError('Vue 运行时未成功加载，`builder.html` 无法初始化。');
+  throw new Error('Vue runtime failed to load');
+}
+
+const { createApp, ref, computed, watch, nextTick, onMounted } = Vue;
+
+createApp({
+  setup() {
+    const schemaStore = ref({ defaultResource: 'Deployment', resourceOrder: [], resources: {} });
+    const k8sDict = ref({});
+    const loading = ref(true);
+    const loadError = ref('');
+    const activeTab = ref('build');
+    const builderResources = ref([]);
+    const activeBuilderId = ref('');
+    const buildWizardStep = ref(1);
+    const activeBuilderGroupLabel = ref('');
+    const activeBuilderFieldLineKey = ref('');
+    const newResourceKey = ref('Deployment');
+    const builderSearch = ref('');
+    const stepFieldSearch = ref('');
+    const showEnabledOnly = ref(false);
+    const showOptionalStepFields = ref(false);
+    const includeComments = ref(false);
+    const builderDocSequence = ref(0);
+    const analysisInput = ref('');
+    const analysisResults = ref([]);
+    const analysisDocuments = ref([]);
+    const analysisError = ref('');
+    const importedFileName = ref('');
+    const analysisImportOpen = ref(true);
+    const analysisOverviewOpen = ref(false);
+    const activeComparePath = ref('');
+    const activeManualDetail = ref(null);
+    const fieldCardCollapseState = ref({});
+    const yamlFileInput = ref(null);
+    const previewCodeEl = ref(null);
+    const buildStepTopEl = ref(null);
+    const toastVisible = ref(false);
+    const toastMessage = ref('已完成');
+    let toastTimer = null;
+
+    function normalizePath(path) {
+      return (path || '')
+        .toLowerCase()
+        .replace(/\[\d+\]/g, '[]')
+        .replace(/\[\]/g, '')
+        .replace(/\s+/g, '')
+        .replace(/\/+/g, '/')
+        .replace(/\.{2,}/g, '.')
+        .replace(/^\./, '')
+        .replace(/\.$/, '');
+    }
+
+    function tokenizeYamlLine(display) {
+      const raw = (display || '').trim();
+      if (!raw) return { mode: 'empty', text: '' };
+      if (raw.startsWith('#')) return { mode: 'comment', comment: raw };
+
+      let body = raw;
+      let prefix = '';
+      if (body.startsWith('- ')) {
+        prefix = '- ';
+        body = body.slice(2);
+      }
+
+      const colonIndex = body.indexOf(':');
+      if (colonIndex === -1) {
+        return { mode: 'plain', prefix, text: body };
+      }
+
+      return {
+        mode: 'pair',
+        prefix,
+        key: body.slice(0, colonIndex),
+        value: body.slice(colonIndex + 1)
+      };
+    }
+
+    function showToast(message) {
+      toastMessage.value = message;
+      toastVisible.value = true;
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastVisible.value = false;
+      }, 1900);
+    }
+
+    function copyText(text, message = '已复制到剪贴板') {
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(message);
+      }).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast(message);
+      });
+    }
+
+    function getSchemaNodeValue(display) {
+      const tokens = tokenizeYamlLine(display);
+      return tokens.mode === 'pair' ? (tokens.value || '').trim() : '';
+    }
+
+    function isComplexType(type = '') {
+      const lower = type.toLowerCase();
+      return lower.includes('object') || lower.includes('map[') || lower.includes('[]');
+    }
+
+    const resourceList = computed(() => {
+      return (schemaStore.value.resourceOrder || []).map((key) => {
+        const resource = schemaStore.value.resources[key] || {};
+        const kindLine = (resource.schema || []).find((node) => node.path === 'kind');
+        return {
+          key,
+          kindName: getSchemaNodeValue(kindLine?.display) || key,
+          ...(resource || {})
+        };
+      });
+    });
+
+    const totalDictEntries = computed(() => {
+      return Object.values(k8sDict.value || {}).reduce((sum, list) => sum + (Array.isArray(list) ? list.length : 0), 0);
+    });
+
+    const buildSteps = computed(() => ([
+      {
+        id: 1,
+        title: '选择资源',
+        description: '先确定这份 YAML 里有哪些核心资源。',
+        longDescription: '先添加这份 YAML 需要包含的资源。'
+      },
+      {
+        id: 2,
+        title: 'Metadata',
+        description: '先完成 name、namespace、labels 等元数据。',
+        longDescription: '先补齐当前资源的基础标识信息。'
+      },
+      {
+        id: 3,
+        title: 'Spec Top-level',
+        description: '填写 replicas、selector、type 等顶层规格。',
+        longDescription: '填写当前资源最核心的顶层规格。'
+      },
+      {
+        id: 4,
+        title: 'Advanced',
+        description: '处理容器、探针、资源限制与更深层配置。',
+        longDescription: '按需补充更深层的高级配置。'
+      }
+    ]));
+
+    const currentBuildStepMeta = computed(() => {
+      return buildSteps.value.find((step) => step.id === buildWizardStep.value) || buildSteps.value[0];
+    });
+
+    const resourceKindLookup = computed(() => {
+      const map = new Map();
+      resourceList.value.forEach((resource) => {
+        map.set(resource.key.toLowerCase(), resource.key);
+        map.set(resource.kindName.toLowerCase(), resource.key);
+      });
+      return map;
+    });
+
+    const dictIndexByResource = computed(() => {
+      const result = {};
+      resourceList.value.forEach((resource) => {
+        const map = new Map();
+        (k8sDict.value[resource.key] || []).forEach((field) => {
+          map.set(normalizePath(field.path), field);
+        });
+        result[resource.key] = map;
+      });
+      return result;
+    });
+
+    function inferOptions(node, resourceKey) {
+      if (node.path === 'kind') {
+        const kindName = resourceList.value.find((item) => item.key === resourceKey)?.kindName || resourceKey;
+        return [kindName];
+      }
+
+      const tokens = tokenizeYamlLine(node.display);
+      if (tokens.mode !== 'pair') return [];
+
+      let raw = (tokens.value || '').trim();
+      if (!raw) {
+        return node.type === 'boolean' ? ['true', 'false'] : [];
+      }
+
+      raw = raw.replace(/^\[/, '').replace(/\]$/, '').trim();
+
+      if (raw.includes('|')) {
+        return raw
+          .split('|')
+          .map((item) => item.trim().replace(/^['"]|['"]$/g, ''))
+          .filter(Boolean);
+      }
+
+      if (node.type === 'boolean' || /^(true|false)$/i.test(raw)) {
+        return ['true', 'false'];
+      }
+
+      return [];
+    }
+
+    function resolveLineDescription(resourceKey, node) {
+      const normalized = normalizePath(node.path);
+      const dictField = dictIndexByResource.value[resourceKey]?.get(normalized);
+      return dictField?.description || node.description || node.comment || '该字段用于当前资源结构配置。';
+    }
+
+    function getLineKey(resourceKey, index, node) {
+      return `${resourceKey}::${index}::${node.path || node.display || 'line'}`;
+    }
+
+    function inferInputKind(node, hasChildren, options) {
+      const tokens = tokenizeYamlLine(node.display);
+      const type = (node.type || '').toLowerCase();
+      const hasExplicitValue = tokens.mode === 'pair' && (tokens.value || '').trim() !== '';
+
+      if (tokens.mode !== 'pair') return 'none';
+      if (options.length > 1) return 'select';
+      if (type === 'boolean' || /^(true|false)$/i.test((tokens.value || '').trim())) return 'boolean';
+      if (type === 'integer' || type === 'number') return 'number';
+      if (isComplexType(node.type) && !hasChildren) return 'block';
+      if (!hasExplicitValue && hasChildren) return 'none';
+      if (!hasExplicitValue && isComplexType(node.type)) return 'block';
+      return 'text';
+    }
+
+    function seedLineValue(node, inputKind, resourceKey) {
+      if (node.path === 'kind') {
+        return resourceList.value.find((item) => item.key === resourceKey)?.kindName || resourceKey;
+      }
+      if (node.path === 'apiVersion') {
+        return getSchemaNodeValue(node.display).replace(/^['"]|['"]$/g, '');
+      }
+      if (inputKind === 'boolean') return false;
+      return '';
+    }
+
+    function isPlaceholderScalar(value) {
+      const normalized = String(value ?? '').trim();
+      return /^(string|number|integer|boolean)$/i.test(normalized) || normalized.includes(' | ');
+    }
+
+    function parseSchemaPath(path) {
+      return String(path || '')
+        .split('.')
+        .filter(Boolean)
+        .map((segment) => ({
+          raw: segment,
+          key: segment.replace(/\[\]/g, ''),
+          isArray: segment.includes('[]')
+        }));
+    }
+
+    function resolveSchemaPath(root, schemaPath) {
+      const segments = parseSchemaPath(schemaPath);
+      if (!segments.length) return { found: false, value: undefined };
+
+      let current = root;
+
+      for (let index = 0; index < segments.length; index += 1) {
+        const segment = segments[index];
+
+        if (current === null || current === undefined || typeof current !== 'object') {
+          return { found: false, value: undefined };
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(current, segment.key)) {
+          return { found: false, value: undefined };
+        }
+
+        current = current[segment.key];
+
+        if (segment.isArray) {
+          if (!Array.isArray(current)) return { found: false, value: undefined };
+          if (index === segments.length - 1) return { found: true, value: current };
+          if (!current.length) return { found: false, value: undefined };
+          current = current[0];
+        }
+      }
+
+      return { found: true, value: current };
+    }
+
+    function safeYamlDump(value) {
+      return jsyaml.dump(value, {
+        lineWidth: -1,
+        noRefs: true,
+        sortKeys: false
+      }).trim();
+    }
+
+    function dumpYamlFragment(value) {
+      if (value === undefined) return '';
+      if (value === null) return 'null';
+      return safeYamlDump(value);
+    }
+
+    function matchesPrefix(path, patterns) {
+      const normalizedPath = normalizePath(path);
+      return patterns.some((pattern) => {
+        const normalizedPattern = normalizePath(pattern);
+        return normalizedPath === normalizedPattern || normalizedPath.startsWith(normalizedPattern + '.');
+      });
+    }
+
+    function matchesExact(path, patterns) {
+      const normalizedPath = normalizePath(path);
+      return patterns.some((pattern) => normalizedPath === normalizePath(pattern));
+    }
+
+    function isRequiredPath(resourceKey, path) {
+      const commonRequired = resourceKey === 'Namespace'
+        ? [
+            'apiVersion',
+            'kind',
+            'metadata',
+            'metadata.name'
+          ]
+        : [
+            'apiVersion',
+            'kind',
+            'metadata',
+            'metadata.name',
+            'spec'
+          ];
+
+      if (commonRequired.includes(path)) return true;
+
+      const resourceRequired = {
+        Deployment: [
+          'spec.selector',
+          'spec.selector.matchLabels',
+          'spec.template',
+          'spec.template.metadata',
+          'spec.template.metadata.labels',
+          'spec.template.spec',
+          'spec.template.spec.containers',
+          'spec.template.spec.containers.name',
+          'spec.template.spec.containers.image'
+        ],
+        Pod: [
+          'spec.containers',
+          'spec.containers.name',
+          'spec.containers.image'
+        ],
+        Namespace: [],
+        Service: [
+          'spec.ports',
+          'spec.ports.port'
+        ],
+        Ingress: [
+          'spec.rules',
+          'spec.rules.http.paths',
+          'spec.rules.http.paths.path',
+          'spec.rules.http.paths.pathType',
+          'spec.rules.http.paths.backend.service.name',
+          'spec.rules.http.paths.backend.service.port.number'
+        ],
+        ConfigMap: [],
+        Secret: [],
+        PVC: [
+          'spec.accessModes',
+          'spec.resources',
+          'spec.resources.requests',
+          'spec.resources.requests.storage'
+        ],
+        StatefulSet: [
+          'spec.serviceName',
+          'spec.selector',
+          'spec.selector.matchLabels',
+          'spec.template',
+          'spec.template.metadata',
+          'spec.template.metadata.labels',
+          'spec.template.spec',
+          'spec.template.spec.containers',
+          'spec.template.spec.containers.name',
+          'spec.template.spec.containers.image'
+        ]
+      };
+
+      return matchesExact(path, resourceRequired[resourceKey] || []);
+    }
+
+    function isBasicRecommended(resourceKey, path) {
+      const commonPatterns = resourceKey === 'Namespace'
+        ? [
+            'apiVersion',
+            'kind',
+            'metadata',
+            'metadata.name'
+          ]
+        : [
+            'apiVersion',
+            'kind',
+            'metadata',
+            'metadata.name',
+            'spec'
+          ];
+
+      const resourcePatterns = {
+        Deployment: [
+          'spec.replicas',
+          'spec.selector',
+          'spec.selector.matchLabels',
+          'spec.template',
+          'spec.template.metadata',
+          'spec.template.metadata.labels',
+          'spec.template.spec',
+          'spec.template.spec.containers',
+          'spec.template.spec.containers.name',
+          'spec.template.spec.containers.image'
+        ],
+        Pod: [
+          'spec.containers',
+          'spec.containers.name',
+          'spec.containers.image'
+        ],
+        Namespace: [],
+        Service: [
+          'spec.selector',
+          'spec.ports',
+          'spec.ports.port'
+        ],
+        Ingress: [
+          'spec.rules',
+          'spec.rules.http.paths',
+          'spec.rules.http.paths.path',
+          'spec.rules.http.paths.pathType',
+          'spec.rules.http.paths.backend.service.name',
+          'spec.rules.http.paths.backend.service.port.number'
+        ],
+        ConfigMap: [
+          'data'
+        ],
+        Secret: [
+          'stringData'
+        ],
+        PVC: [
+          'spec.accessModes',
+          'spec.resources',
+          'spec.resources.requests',
+          'spec.resources.requests.storage'
+        ],
+        StatefulSet: [
+          'spec.serviceName',
+          'spec.replicas',
+          'spec.selector',
+          'spec.selector.matchLabels',
+          'spec.template',
+          'spec.template.metadata',
+          'spec.template.metadata.labels',
+          'spec.template.spec',
+          'spec.template.spec.containers',
+          'spec.template.spec.containers.name',
+          'spec.template.spec.containers.image'
+        ]
+      };
+
+      return matchesPrefix(path, commonPatterns) || matchesPrefix(path, resourcePatterns[resourceKey] || []);
+    }
+
+    function createBuilderDocument(resourceKey, preset = 'minimal', options = {}) {
+      const resourceMeta = schemaStore.value.resources[resourceKey] || {};
+      const schema = resourceMeta.schema || [];
+
+      const lineStates = schema.map((node, index) => {
+        const nextNode = schema[index + 1];
+        const hasChildren = Boolean(nextNode && nextNode.indent > node.indent);
+        const normalizedPath = normalizePath(node.path);
+        const options = inferOptions(node, resourceKey);
+        const inputKind = inferInputKind(node, hasChildren, options);
+
+        return {
+          lineKey: getLineKey(resourceKey, index, node),
+          index,
+          path: node.path || '',
+          normalizedPath,
+          indent: node.indent || 0,
+          type: node.type || 'Field',
+          comment: node.comment || '',
+          description: resolveLineDescription(resourceKey, node),
+          originalDisplay: node.display || '',
+          tokens: tokenizeYamlLine(node.display),
+          options,
+          inputKind,
+          hasChildren,
+          required: isRequiredPath(resourceKey, normalizedPath),
+          enabled: false,
+          value: seedLineValue(node, inputKind, resourceKey),
+          customBlock: ''
+        };
+      });
+
+      const doc = {
+        id: `${resourceKey}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        sequence: options.sequence ?? builderDocSequence.value++,
+        resourceKey,
+        kindName: resourceList.value.find((item) => item.key === resourceKey)?.kindName || resourceKey,
+        preset,
+        lineStates,
+        imported: false,
+        importUnknownFields: [],
+        importIssues: [],
+        importWarnings: [],
+        originalYaml: ''
+      };
+
+      if (options.applyPreset === false) {
+        doc.lineStates.forEach((line, index) => {
+          line.enabled = Boolean(line.required);
+          if (line.enabled) enableLineAncestors(doc, index);
+        });
+      } else {
+        applyPreset(doc, preset);
+      }
+
+      return doc;
+    }
+
+    function enableLineAncestors(doc, lineIndex) {
+      let currentIndent = doc.lineStates[lineIndex].indent;
+      for (let index = lineIndex - 1; index >= 0; index -= 1) {
+        const candidate = doc.lineStates[index];
+        if (candidate.indent < currentIndent) {
+          candidate.enabled = true;
+          currentIndent = candidate.indent;
+        }
+      }
+    }
+
+    function disableLineDescendants(doc, lineIndex) {
+      const baseIndent = doc.lineStates[lineIndex].indent;
+      for (let index = lineIndex + 1; index < doc.lineStates.length; index += 1) {
+        const candidate = doc.lineStates[index];
+        if (candidate.indent <= baseIndent) break;
+        if (!candidate.required) candidate.enabled = false;
+      }
+    }
+
+    function applyPreset(doc, preset) {
+      doc.preset = preset;
+      doc.lineStates.forEach((line, index) => {
+        const shouldEnable = line.required || preset === 'full' || (preset === 'basic' && isBasicRecommended(doc.resourceKey, line.normalizedPath));
+        line.enabled = shouldEnable;
+        if (shouldEnable) enableLineAncestors(doc, index);
+      });
+    }
+
+    function addBuilderResource(resourceKey) {
+      const doc = createBuilderDocument(resourceKey, 'minimal');
+      builderResources.value.push(doc);
+      activeBuilderId.value = doc.id;
+      if (buildWizardStep.value < 2) buildWizardStep.value = 2;
+      showToast(`${doc.kindName} 资源已加入构建区`);
+    }
+
+    function shouldReplaceInitialBuilderDocs() {
+      if (builderResources.value.length !== 1) return false;
+      const doc = builderResources.value[0];
+      if (doc.imported) return false;
+      return getBuilderDocumentName(doc).includes('未命名文档');
+    }
+
+    function setImportedLineValue(line, value) {
+      if (value === undefined) return;
+
+      if (line.path === 'kind') {
+        line.value = String(value || '');
+        return;
+      }
+
+      if (line.inputKind === 'block') {
+        line.customBlock = dumpYamlFragment(value);
+        return;
+      }
+
+      if (line.inputKind === 'boolean') {
+        line.value = typeof value === 'boolean' ? value : normalizeOptionValue(value) === 'true';
+        return;
+      }
+
+      if (line.inputKind === 'number') {
+        if (typeof value !== 'object' || value === null) line.value = String(value);
+        return;
+      }
+
+      if (line.inputKind === 'select' || line.inputKind === 'text') {
+        if (!Array.isArray(value) && (typeof value !== 'object' || value === null)) {
+          line.value = value === null ? 'null' : String(value);
+        }
+      }
+    }
+
+    function createImportedBuilderDocument(rawDoc, analysisDoc) {
+      if (!analysisDoc?.resourceKey) return null;
+
+      const doc = createBuilderDocument(analysisDoc.resourceKey, 'imported', { applyPreset: false });
+      doc.imported = true;
+      doc.kindName = analysisDoc.kindName || doc.kindName;
+      doc.originalYaml = safeYamlDump(rawDoc);
+      doc.importUnknownFields = Array.isArray(analysisDoc.unknownFields) ? analysisDoc.unknownFields.slice() : [];
+      doc.importIssues = Array.isArray(analysisDoc.issues) ? analysisDoc.issues.slice() : [];
+
+      const warnings = [];
+
+      doc.lineStates.forEach((line, index) => {
+        const resolved = resolveSchemaPath(rawDoc, line.path);
+        if (!resolved.found) return;
+
+        line.enabled = true;
+        enableLineAncestors(doc, index);
+        setImportedLineValue(line, resolved.value);
+
+        if (line.path.endsWith('[]') && Array.isArray(resolved.value) && resolved.value.length > 1) {
+          warnings.push(`${line.path} 包含 ${resolved.value.length} 个条目，向导目前优先回填第 1 个条目，其余条目请结合原始 YAML 复核。`);
+        }
+      });
+
+      if (doc.importUnknownFields.length) {
+        warnings.push(`当前文档存在 ${doc.importUnknownFields.length} 个知识库未收录字段，继续编辑时请结合原始 YAML 一起校对。`);
+      }
+
+      if (doc.importIssues.length) {
+        doc.importIssues.slice(0, 3).forEach((issue) => {
+          warnings.push(`[${issue.severity === 'error' ? 'Error' : 'Warn'}] ${issue.message}`);
+        });
+        if (doc.importIssues.length > 3) {
+          warnings.push(`另有 ${doc.importIssues.length - 3} 条问题提示已保留在分析页。`);
+        }
+      }
+
+      doc.importWarnings = dedupeBy(warnings.map((message) => ({ message })), (item) => item.message).map((item) => item.message);
+      return doc;
+    }
+
+    function appendImportedBuilderDocuments(importedDocs) {
+      if (!importedDocs.length) {
+        showToast('没有可回填的已识别资源');
+        return;
+      }
+
+      if (shouldReplaceInitialBuilderDocs()) {
+        builderResources.value = [];
+      }
+
+      builderResources.value.push(...importedDocs);
+      activeBuilderId.value = importedDocs[importedDocs.length - 1].id;
+      activeTab.value = 'build';
+      buildWizardStep.value = 2;
+      showToast(`已回填 ${importedDocs.length} 个资源到向导`);
+    }
+
+    function importAnalysisDocument(index) {
+      const rawDoc = analysisDocuments.value[index];
+      const analysisDoc = analysisResults.value[index];
+      const imported = createImportedBuilderDocument(rawDoc, analysisDoc);
+      appendImportedBuilderDocuments(imported ? [imported] : []);
+    }
+
+    function importAllAnalysisToBuilder() {
+      const importedDocs = analysisResults.value
+        .map((analysisDoc, index) => createImportedBuilderDocument(analysisDocuments.value[index], analysisDoc))
+        .filter(Boolean);
+
+      appendImportedBuilderDocuments(importedDocs);
+    }
+
+    function copyImportedOriginalYaml(doc = activeBuilder.value) {
+      if (!doc?.originalYaml) {
+        showToast('当前资源没有可复制的导入 YAML');
+        return;
+      }
+      copyText(doc.originalYaml, '解析后 YAML 已复制');
+    }
+
+    function canOpenBuildStep(stepId) {
+      if (stepId === 1) return true;
+      return Boolean(activeBuilder.value);
+    }
+
+    function scrollBuildStepIntoView() {
+      nextTick(() => {
+        buildStepTopEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+
+    function goBuildStep(stepId) {
+      if (!canOpenBuildStep(stepId)) return;
+      buildWizardStep.value = stepId;
+      scrollBuildStepIntoView();
+    }
+
+    const canAdvanceBuildStep = computed(() => {
+      if (buildWizardStep.value >= buildSteps.value.length) return false;
+      if (buildWizardStep.value === 1) return builderResources.value.length > 0;
+      return Boolean(activeBuilder.value);
+    });
+
+    function nextBuildStep() {
+      if (!canAdvanceBuildStep.value) return;
+      goBuildStep(Math.min(buildSteps.value.length, buildWizardStep.value + 1));
+    }
+
+    function prevBuildStep() {
+      goBuildStep(Math.max(1, buildWizardStep.value - 1));
+    }
+
+    function selectBuilderGroup(label) {
+      activeBuilderGroupLabel.value = label;
+    }
+
+    function selectBuilderField(lineKey) {
+      activeBuilderFieldLineKey.value = lineKey;
+    }
+
+    function nextBuilderGroup() {
+      if (!activeBuilderGroup.value) return;
+      const next = builderFieldGroups.value[activeBuilderGroupIndex.value + 1];
+      if (next) activeBuilderGroupLabel.value = next.label;
+    }
+
+    function prevBuilderGroup() {
+      if (!activeBuilderGroup.value) return;
+      const prev = builderFieldGroups.value[activeBuilderGroupIndex.value - 1];
+      if (prev) activeBuilderGroupLabel.value = prev.label;
+    }
+
+    function nextBuilderField() {
+      if (!activeBuilderField.value) return;
+      const next = activeBuilderGroupFields.value[activeBuilderFieldIndex.value + 1];
+      if (next) activeBuilderFieldLineKey.value = next.lineKey;
+    }
+
+    function prevBuilderField() {
+      if (!activeBuilderField.value) return;
+      const prev = activeBuilderGroupFields.value[activeBuilderFieldIndex.value - 1];
+      if (prev) activeBuilderFieldLineKey.value = prev.lineKey;
+    }
+
+    function buildStepButtonClass(stepId) {
+      if (!canOpenBuildStep(stepId)) return 'border-slate-200 bg-slate-50 text-slate-400 opacity-60 cursor-not-allowed';
+      if (buildWizardStep.value === stepId) return 'border-k8s bg-blue-50 text-slate-900 shadow-sm';
+      if (buildWizardStep.value > stepId) return 'border-emerald-200 bg-emerald-50 text-slate-900';
+      return 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50';
+    }
+
+    function buildStepBadgeClass(stepId) {
+      if (buildWizardStep.value === stepId) return 'bg-k8s text-white';
+      if (buildWizardStep.value > stepId) return 'bg-emerald-500 text-white';
+      return 'bg-slate-100 text-slate-500';
+    }
+
+    function getBuilderDocumentName(doc) {
+      const line = doc.lineStates.find((item) => item.normalizedPath === normalizePath('metadata.name'));
+      const value = String(line?.value || '').trim();
+      return value && value !== 'string' ? value : `${doc.kindName} 未命名文档`;
+    }
+
+    function getBuilderDocumentNamespace(doc) {
+      const line = doc.lineStates.find((item) => item.normalizedPath === normalizePath('metadata.namespace'));
+      const value = String(line?.value || '').trim();
+      return value && value !== 'string' ? value : 'namespace 未设置';
+    }
+
+    const activeBuilder = computed(() => {
+      return builderResources.value.find((doc) => doc.id === activeBuilderId.value) || builderResources.value[0] || null;
+    });
+
+    const activeBuilderIndex = computed(() => {
+      if (!activeBuilder.value) return -1;
+      return builderResources.value.findIndex((doc) => doc.id === activeBuilder.value.id);
+    });
+
+    const canGoPrevBuilderResource = computed(() => activeBuilderIndex.value > 0);
+    const canGoNextBuilderResource = computed(() => activeBuilderIndex.value > -1 && activeBuilderIndex.value < builderResources.value.length - 1);
+
+    function activateBuilderDocument(docId) {
+      if (!docId || activeBuilderId.value === docId) return;
+      activeBuilderId.value = docId;
+      scrollBuildStepIntoView();
+    }
+
+    function prevBuilderResource() {
+      if (!canGoPrevBuilderResource.value) return;
+      const prevDoc = builderResources.value[activeBuilderIndex.value - 1];
+      if (prevDoc) activateBuilderDocument(prevDoc.id);
+    }
+
+    function nextBuilderResource() {
+      if (!canGoNextBuilderResource.value) return;
+      const nextDoc = builderResources.value[activeBuilderIndex.value + 1];
+      if (nextDoc) activateBuilderDocument(nextDoc.id);
+    }
+
+    const activeBuilderEnabledCount = computed(() => {
+      return activeBuilder.value ? activeBuilder.value.lineStates.filter((line) => line.enabled).length : 0;
+    });
+
+    const activeBuilderMissingRequiredFields = computed(() => {
+      const doc = activeBuilder.value;
+      if (!doc) return [];
+      return doc.lineStates.filter((line) => {
+        if (!line.required || line.inputKind === 'none') return false;
+        if (line.inputKind === 'boolean') return false;
+        if (line.inputKind === 'block') return !String(line.customBlock || '').trim();
+        return renderLineValue(line) === '';
+      });
+    });
+
+    const canAppendResourceToYaml = computed(() => {
+      if (!activeBuilder.value) return builderResources.value.length === 0;
+      return activeBuilderMissingRequiredFields.value.length === 0;
+    });
+
+    function appendNextResourceToYaml() {
+      if (!activeBuilder.value) {
+        goBuildStep(1);
+        return;
+      }
+      if (!canAppendResourceToYaml.value) {
+        const missing = activeBuilderMissingRequiredFields.value.slice(0, 3).map((line) => stepFieldQuestion(line));
+        const suffix = activeBuilderMissingRequiredFields.value.length > 3 ? ' 等字段' : '';
+        showToast(`请先完成当前资源的必填项：${missing.join('、')}${suffix}`);
+        return;
+      }
+      goBuildStep(1);
+    }
+
+    const activeQuickFields = computed(() => {
+      const doc = activeBuilder.value;
+      if (!doc) return [];
+
+      const preferredPaths = [
+        'metadata.name',
+        'metadata.namespace',
+        'spec.replicas',
+        'spec.type',
+        'spec.ingressClassName',
+        'spec.serviceName',
+        'spec.template.spec.containers.image',
+        'spec.template.spec.containers.imagePullPolicy',
+        'spec.template.spec.containers.ports.containerPort',
+        'spec.resources.requests.storage',
+        'type'
+      ];
+
+      const used = new Set();
+      const result = [];
+
+      preferredPaths.forEach((path) => {
+        const line = doc.lineStates.find((item) => item.normalizedPath === normalizePath(path) && item.inputKind !== 'none');
+        if (line && !used.has(line.lineKey)) {
+          result.push(line);
+          used.add(line.lineKey);
+        }
+      });
+
+      if (result.length < 6) {
+        doc.lineStates
+          .filter((line) => line.inputKind !== 'none' && !used.has(line.lineKey) && line.enabled)
+          .slice(0, 6 - result.length)
+          .forEach((line) => {
+            result.push(line);
+            used.add(line.lineKey);
+          });
+      }
+
+      return result;
+    });
+
+    function quickFieldLabel(line) {
+      if (!line.path) return '字段';
+      const segments = line.path.split('.');
+      return segments[segments.length - 1].replace(/\[\]/g, '') || line.path;
+    }
+
+    function quickFieldQuestion(line) {
+      const label = quickFieldLabel(line);
+      return `请设置 ${label} 的值`;
+    }
+
+    function deriveFieldTitleFromComment(line) {
+      const candidates = [line.comment, line.description];
+      for (const candidate of candidates) {
+        const raw = String(candidate || '').trim();
+        if (!raw) continue;
+        const cleaned = raw
+          .replace(/^[必可]选[，,:： ]*/g, '')
+          .replace(/^(例如|比如)[，,:： ]*/g, '')
+          .split(/[。；;（(]/)[0]
+          .trim();
+        if (/[\u4e00-\u9fff]/.test(cleaned)) {
+          return compactCommentText(cleaned, 20);
+        }
+      }
+      return '';
+    }
+
+    function stepFieldQuestion(line) {
+      const path = line.normalizedPath;
+      const questionMap = {
+        'metadata.name': '资源名称',
+        'metadata.namespace': '命名空间',
+        'metadata.labels': '资源标签',
+        'metadata.annotations': '资源注解',
+        'spec.replicas': '副本数量',
+        'spec.type': 'Service 暴露类型',
+        'spec.selector': 'Service 选择器',
+        'spec.selector.matchlabels': '工作负载选择器',
+        'spec.template.metadata.labels': 'Pod 模板标签',
+        'spec.template.spec.containers.name': '容器名称',
+        'spec.template.spec.containers.image': '容器镜像',
+        'spec.template.spec.containers.ports.containerport': '容器端口',
+        'spec.template.spec.containers.resources': '资源配额',
+        'spec.template.spec.containers.livenessprobe': '存活探针',
+        'spec.template.spec.containers.readinessprobe': '就绪探针'
+      };
+      return questionMap[path] || deriveFieldTitleFromComment(line) || quickFieldLabel(line);
+    }
+
+    function stepFieldPlaceholder(line) {
+      if (line.normalizedPath === normalizePath('metadata.labels')) {
+        return 'app.kubernetes.io/name: order-service\napp.kubernetes.io/part-of: commerce';
+      }
+      if (line.normalizedPath === normalizePath('spec.selector')) {
+        return 'app.kubernetes.io/name: order-service';
+      }
+      if (line.normalizedPath === normalizePath('spec.selector.matchLabels')) {
+        return 'app.kubernetes.io/name: order-service';
+      }
+      if (line.normalizedPath === normalizePath('spec.template.metadata.labels')) {
+        return 'app.kubernetes.io/name: order-service\napp.kubernetes.io/component: api';
+      }
+      return '输入相对于当前字段的 YAML 片段，例如：\nkey: value';
+    }
+
+    function isGuideStructuralLine(line) {
+      if (!line) return true;
+      const path = line.normalizedPath;
+      if (!path) return true;
+      if (path === 'apiversion' || path === 'kind' || path === 'metadata' || path === 'spec') return true;
+      return line.inputKind === 'none';
+    }
+
+    function formatGuideContextHint(line) {
+      if (!line) return '';
+      const path = normalizePath(line.path || line.originalDisplay || '');
+      const labelMap = {
+        metadata: 'metadata',
+        spec: 'spec',
+        'spec.containers': 'spec.containers[]',
+        'spec.template': 'spec.template',
+        'spec.template.spec': 'spec.template.spec',
+        'spec.template.spec.containers': 'spec.template.spec.containers[]',
+        'spec.ports': 'spec.ports[]',
+        'spec.rules': 'spec.rules[]',
+        'spec.rules.http.paths': 'spec.rules[].http.paths[]',
+        data: 'data',
+        stringdata: 'stringData',
+        'spec.resources': 'spec.resources',
+        'spec.resources.requests': 'spec.resources.requests',
+        'spec.selector': 'spec.selector',
+        'spec.selector.matchlabels': 'spec.selector.matchLabels'
+      };
+      return labelMap[path] || line.path || (line.originalDisplay || '').trim();
+    }
+
+    function toggleLine(line) {
+      const doc = activeBuilder.value;
+      if (!doc || !line) return;
+      if (line.required) return;
+
+      line.enabled = !line.enabled;
+      if (line.enabled) {
+        enableLineAncestors(doc, line.index);
+        fieldCardCollapseState.value[line.lineKey] = false;
+      } else {
+        disableLineDescendants(doc, line.index);
+        fieldCardCollapseState.value[line.lineKey] = true;
+      }
+    }
+
+    function isFieldCardCollapsed(line) {
+      if (!line) return true;
+      if (fieldCardCollapseState.value[line.lineKey] === undefined) {
+        fieldCardCollapseState.value[line.lineKey] = true;
+      }
+      return fieldCardCollapseState.value[line.lineKey];
+    }
+
+    function toggleFieldCard(line) {
+      if (!line) return;
+      fieldCardCollapseState.value[line.lineKey] = !isFieldCardCollapsed(line);
+    }
+
+    function ensureLineEnabled(line) {
+      const doc = activeBuilder.value;
+      if (!doc || !line) return;
+      if (!line.enabled) {
+        line.enabled = true;
+        enableLineAncestors(doc, line.index);
+        fieldCardCollapseState.value[line.lineKey] = false;
+      }
+    }
+
+    function updateLineValue(line, value) {
+      if (!line) return;
+      ensureLineEnabled(line);
+      if (line.inputKind === 'boolean') {
+        line.value = Boolean(value);
+        return;
+      }
+      line.value = value;
+    }
+
+    function updateCustomBlock(line, value) {
+      if (!line) return;
+      ensureLineEnabled(line);
+      line.customBlock = value;
+    }
+
+    function getPathSegments(path) {
+      return normalizePath(path).split('.').filter(Boolean);
+    }
+
+    function isMetadataStepPath(path) {
+      return path === 'apiVersion' || path === 'kind' || path.startsWith('metadata');
+    }
+
+    function isSpecTopLevelStepPath(resourceKey, path) {
+      if (!path) return false;
+      if (path === 'type' || path.startsWith('data') || path.startsWith('stringData')) return true;
+      if (!path.startsWith('spec')) return false;
+      if (path.startsWith('spec.template.spec.containers')) return false;
+      if (path.startsWith('spec.template.spec.initcontainers')) return false;
+      if (path.startsWith('spec.template.spec.ephemeralcontainers')) return false;
+
+      const segments = getPathSegments(path);
+      if (resourceKey === 'Service') return true;
+      if (resourceKey === 'Namespace') {
+        return matchesPrefix(path, ['spec.finalizers']);
+      }
+      if (resourceKey === 'Pod') {
+        return segments.length <= 2
+          || matchesPrefix(path, [
+            'spec.restartpolicy',
+            'spec.serviceaccountname',
+            'spec.imagesecretpulls',
+            'spec.imagepullsecrets',
+            'spec.nodename',
+            'spec.nodeselector',
+            'spec.affinity',
+            'spec.tolerations',
+            'spec.hostnetwork',
+            'spec.dnspolicy',
+            'spec.terminationgraceperiodseconds',
+            'spec.securitycontext'
+          ]);
+      }
+      if (resourceKey === 'Ingress') {
+        return segments.length <= 4 || matchesPrefix(path, ['spec.rules', 'spec.tls']);
+      }
+      if (resourceKey === 'ConfigMap' || resourceKey === 'Secret' || resourceKey === 'PVC') return true;
+      if (resourceKey === 'Deployment' || resourceKey === 'StatefulSet') {
+        return segments.length <= 3
+          || matchesPrefix(path, [
+            'spec.selector',
+            'spec.strategy',
+            'spec.serviceName',
+            'spec.volumeclaimtemplates',
+            'spec.template.metadata'
+          ]);
+      }
+      return segments.length <= 3;
+    }
+
+    function belongsToBuildStep(doc, line, stepId) {
+      const path = line.normalizedPath;
+      if (!path) return false;
+      if (stepId === 2) return isMetadataStepPath(path);
+      if (stepId === 3) return isSpecTopLevelStepPath(doc.resourceKey, path);
+      if (stepId === 4) return !isMetadataStepPath(path) && !isSpecTopLevelStepPath(doc.resourceKey, path);
+      return false;
+    }
+
+    function isGuidedStepRecommended(resourceKey, stepId, path) {
+      const recommended = {
+        2: {
+          default: [
+            'metadata.name'
+          ],
+          Namespace: [
+            'metadata.name'
+          ]
+        },
+        3: {
+          Deployment: [
+            'spec.replicas',
+            'spec.selector',
+            'spec.selector.matchlabels',
+            'spec.template.metadata.labels'
+          ],
+          Namespace: [],
+          Pod: [],
+          Service: [
+            'spec.selector',
+            'spec.ports',
+            'spec.ports.port'
+          ],
+          Ingress: [
+            'spec.rules',
+            'spec.rules.http.paths',
+            'spec.rules.http.paths.path',
+            'spec.rules.http.paths.pathtype',
+            'spec.rules.http.paths.backend.service.name',
+            'spec.rules.http.paths.backend.service.port.number'
+          ],
+          ConfigMap: [
+            'data'
+          ],
+          Secret: [
+            'stringdata'
+          ],
+          PVC: [
+            'spec.accessmodes',
+            'spec.resources',
+            'spec.resources.requests.storage'
+          ],
+          StatefulSet: [
+            'spec.servicename',
+            'spec.replicas',
+            'spec.selector',
+            'spec.selector.matchlabels',
+            'spec.template.metadata.labels'
+          ]
+        },
+        4: {
+          Deployment: [],
+          Namespace: [],
+          Pod: [],
+          StatefulSet: [],
+          Service: [],
+          Ingress: [],
+          ConfigMap: [],
+          Secret: [],
+          PVC: []
+        }
+      };
+
+      if (stepId === 2) return matchesPrefix(path, recommended[2][resourceKey] || recommended[2].default);
+      return matchesPrefix(path, recommended[stepId]?.[resourceKey] || []);
+    }
+
+    const currentBuildStepLines = computed(() => {
+      const doc = activeBuilder.value;
+      if (!doc || buildWizardStep.value === 1) return [];
+      return doc.lineStates.filter((line) => belongsToBuildStep(doc, line, buildWizardStep.value));
+    });
+
+    const currentBuildStepVisibleLines = computed(() => {
+      const doc = activeBuilder.value;
+      if (!doc) return [];
+      const query = stepFieldSearch.value.trim().toLowerCase();
+      return currentBuildStepLines.value.filter((line) => (
+        !isGuideStructuralLine(line)
+        && (
+        showOptionalStepFields.value
+        || line.required
+        || line.enabled
+        )
+        && (
+          !query
+          || [
+            line.path,
+            line.description,
+            line.comment,
+            line.originalDisplay,
+            line.type,
+            stepFieldQuestion(line)
+          ].join(' ').toLowerCase().includes(query)
+        )
+      ));
+    });
+
+    const currentBuildStepContextHints = computed(() => {
+      const seen = new Set();
+      return currentBuildStepLines.value
+        .filter((line) => isGuideStructuralLine(line))
+        .map((line) => formatGuideContextHint(line))
+        .filter((hint) => hint && hint !== 'apiversion' && hint !== 'kind' && !seen.has(hint) && seen.add(hint));
+    });
+
+    function parseYamlObjectFragment(text) {
+      const raw = String(text || '').trim();
+      if (!raw) return null;
+      try {
+        const value = jsyaml.load(raw);
+        return value && typeof value === 'object' && !Array.isArray(value) ? value : null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function getDocumentLine(doc, path) {
+      return doc?.lineStates.find((item) => item.normalizedPath === normalizePath(path)) || null;
+    }
+
+    function extractDocumentLabels(doc) {
+      const candidates = [
+        'spec.template.metadata.labels',
+        'metadata.labels',
+        'spec.selector.matchLabels'
+      ];
+
+      for (const path of candidates) {
+        const line = getDocumentLine(doc, path);
+        if (!line || !line.enabled) continue;
+
+        if (line.inputKind === 'block') {
+          const parsed = parseYamlObjectFragment(line.customBlock);
+          if (parsed && Object.keys(parsed).length) return parsed;
+        }
+
+        if (line.inputKind === 'text' && typeof line.value === 'string' && line.value.includes(':')) {
+          const parsed = parseYamlObjectFragment(line.value);
+          if (parsed && Object.keys(parsed).length) return parsed;
+        }
+      }
+
+      return null;
+    }
+
+    const smartBindingCandidates = computed(() => {
+      const doc = activeBuilder.value;
+      if (!doc || doc.resourceKey !== 'Service') return [];
+
+      return builderResources.value
+        .filter((item) => item.id !== doc.id && ['Deployment', 'StatefulSet'].includes(item.resourceKey))
+        .map((item) => ({
+          id: item.id,
+          kindName: item.kindName,
+          name: getBuilderDocumentName(item),
+          labels: extractDocumentLabels(item)
+        }))
+        .filter((item) => item.labels && Object.keys(item.labels).length);
+    });
+
+    function showSmartBindingForLine(line) {
+      return activeBuilder.value?.resourceKey === 'Service'
+        && line.normalizedPath === normalizePath('spec.selector')
+        && smartBindingCandidates.value.length > 0;
+    }
+
+    function applySmartBinding(line, binding) {
+      if (!line || !binding?.labels) return;
+      ensureLineEnabled(line);
+      line.customBlock = dumpYamlFragment(binding.labels);
+      showToast(`已将 ${binding.kindName} ${binding.name} 的 labels 绑定到当前 Service selector`);
+    }
+
+    function preserveDocumentValues(doc) {
+      const preservePaths = ['metadata.name', 'metadata.namespace'];
+      const preserved = new Map();
+      preservePaths.forEach((path) => {
+        const line = doc.lineStates.find((item) => item.normalizedPath === normalizePath(path));
+        if (line) preserved.set(normalizePath(path), line.value);
+      });
+      return preserved;
+    }
+
+    function changeBuilderResourceKind(doc, nextResourceKey) {
+      if (!doc || !nextResourceKey || doc.resourceKey === nextResourceKey) return;
+      const preserved = preserveDocumentValues(doc);
+      const fresh = createBuilderDocument(nextResourceKey, doc.preset || 'minimal');
+
+      fresh.lineStates.forEach((line) => {
+        if (preserved.has(line.normalizedPath) && line.inputKind !== 'none') {
+          line.value = preserved.get(line.normalizedPath);
+        }
+      });
+
+      const index = builderResources.value.findIndex((item) => item.id === doc.id);
+      if (index === -1) return;
+      fresh.id = doc.id;
+      fresh.sequence = doc.sequence;
+      builderResources.value.splice(index, 1, fresh);
+      activeBuilderId.value = fresh.id;
+      showToast(`已切换到 ${fresh.kindName}`);
+    }
+
+    function removeBuilderResource(docId) {
+      const index = builderResources.value.findIndex((doc) => doc.id === docId);
+      if (index === -1) return;
+      const removed = builderResources.value[index];
+      builderResources.value.splice(index, 1);
+
+      if (!builderResources.value.length) {
+        activeBuilderId.value = '';
+      } else if (activeBuilderId.value === docId) {
+        activeBuilderId.value = builderResources.value[Math.max(index - 1, 0)].id;
+      }
+
+      showToast(`${removed.kindName} 已从构建区移除`);
+    }
+
+    function getFieldGroupLabel(line) {
+      const path = line.path || '';
+      if (!path || path === 'apiVersion' || path === 'kind') return '基础';
+      if (path.startsWith('metadata')) return 'metadata';
+      if (path.startsWith('spec')) return 'spec';
+      if (path.startsWith('data')) return 'data';
+      if (path.startsWith('stringData')) return 'stringData';
+      return '其它';
+    }
+
+    const builderFieldGroups = computed(() => {
+      const doc = activeBuilder.value;
+      if (!doc) return [];
+
+      const query = builderSearch.value.trim().toLowerCase();
+      const filtered = doc.lineStates.filter((line) => {
+        if (showEnabledOnly.value && !line.enabled) return false;
+        if (!query) return true;
+        const haystack = [
+          line.path,
+          line.description,
+          line.comment,
+          line.originalDisplay,
+          line.type
+        ].join(' ').toLowerCase();
+        return haystack.includes(query);
+      });
+
+      const order = ['基础', 'metadata', 'spec', 'data', 'stringData', '其它'];
+      const map = new Map();
+      filtered.forEach((line) => {
+        const label = getFieldGroupLabel(line);
+        if (!map.has(label)) map.set(label, []);
+        map.get(label).push(line);
+      });
+
+      return order.filter((label) => map.has(label)).map((label) => ({
+        label,
+        lines: map.get(label)
+      }));
+    });
+
+    const activeBuilderGroup = computed(() => {
+      return builderFieldGroups.value.find((group) => group.label === activeBuilderGroupLabel.value) || builderFieldGroups.value[0] || null;
+    });
+
+    const activeBuilderGroupIndex = computed(() => {
+      if (!activeBuilderGroup.value) return -1;
+      return builderFieldGroups.value.findIndex((group) => group.label === activeBuilderGroup.value.label);
+    });
+
+    const activeBuilderGroupFields = computed(() => activeBuilderGroup.value?.lines || []);
+
+    const activeBuilderField = computed(() => {
+      return activeBuilderGroupFields.value.find((line) => line.lineKey === activeBuilderFieldLineKey.value) || activeBuilderGroupFields.value[0] || null;
+    });
+
+    const activeBuilderFieldIndex = computed(() => {
+      if (!activeBuilderField.value) return -1;
+      return activeBuilderGroupFields.value.findIndex((line) => line.lineKey === activeBuilderField.value.lineKey);
+    });
+
+    function normalizeFragment(text) {
+      const lines = String(text || '').replace(/\t/g, '  ').split(/\r?\n/);
+      const nonEmpty = lines.filter((line) => line.trim());
+      if (!nonEmpty.length) return [];
+      const minIndent = Math.min(...nonEmpty.map((line) => line.match(/^ */)[0].length));
+      return lines.map((line) => (line.trim() ? line.slice(minIndent) : ''));
+    }
+
+    function renderLineValue(line) {
+      if (line.inputKind === 'select' && !String(line.value || '').trim()) return '';
+      if (line.inputKind === 'boolean') return line.value ? 'true' : 'false';
+      if (line.inputKind === 'number') return line.value === '' || line.value === null ? '' : String(line.value);
+      if (line.inputKind === 'block') return '';
+      if (isPlaceholderScalar(line.value)) return '';
+      return String(line.value ?? '').trim();
+    }
+
+    function buildRenderedLine(line, withComments) {
+      let content = (line.originalDisplay || '').trim();
+
+      if (line.tokens.mode === 'pair') {
+        const value = renderLineValue(line);
+        content = `${line.tokens.prefix || ''}${line.tokens.key}:${value !== '' ? ` ${value}` : ''}`;
+      }
+
+      const lineText = `${'  '.repeat(line.indent)}${content}`;
+      return withComments && line.comment ? `${lineText}  # ${line.comment}` : lineText;
+    }
+
+    function fieldLinePreview(line) {
+      return buildRenderedLine(line, false).trim();
+    }
+
+    function shouldRenderYamlLine(line, childRendered) {
+      if (!line.enabled) return false;
+
+      if (line.inputKind === 'block') {
+        return Boolean(String(line.customBlock || '').trim()) || childRendered || line.required;
+      }
+
+      if (line.tokens.mode !== 'pair') {
+        return childRendered;
+      }
+
+      const value = renderLineValue(line);
+      const hasOwnValue = value !== '';
+
+      if (line.hasChildren) {
+        return hasOwnValue || childRendered;
+      }
+
+      return hasOwnValue || line.required;
+    }
+
+    function collectRenderedYamlLines(doc, withComments, startIndex = 0, parentIndent = -1) {
+      const output = [];
+      let renderedAny = false;
+      let index = startIndex;
+
+      while (index < doc.lineStates.length) {
+        const line = doc.lineStates[index];
+        if (line.indent <= parentIndent) break;
+
+        const nextIndexBase = index + 1;
+        let childOutput = [];
+        let childRendered = false;
+        let nextIndex = nextIndexBase;
+
+        if (line.hasChildren) {
+          const childResult = collectRenderedYamlLines(doc, withComments, nextIndexBase, line.indent);
+          childOutput = childResult.lines;
+          childRendered = childResult.rendered;
+          nextIndex = childResult.nextIndex;
+        }
+
+        if (shouldRenderYamlLine(line, childRendered)) {
+          output.push(buildRenderedLine(line, withComments));
+
+          if (line.inputKind === 'block' && String(line.customBlock || '').trim()) {
+            normalizeFragment(line.customBlock).forEach((fragmentLine) => {
+              output.push(fragmentLine ? `${'  '.repeat(line.indent + 1)}${fragmentLine}` : '');
+            });
+          }
+
+          output.push(...childOutput);
+          renderedAny = true;
+        }
+
+        index = nextIndex;
+      }
+
+      return { lines: output, rendered: renderedAny, nextIndex: index };
+    }
+
+    function renderDocumentYaml(doc, withComments) {
+      const result = collectRenderedYamlLines(doc, withComments);
+      return result.lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    const buildPreviewDocs = computed(() => {
+      return builderResources.value
+        .slice()
+        .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+        .map((doc) => ({
+          ...doc,
+          yaml: renderDocumentYaml(doc, includeComments.value)
+        }))
+        .filter((doc) => doc.yaml);
+    });
+
+    const buildOutputYaml = computed(() => {
+      return buildPreviewDocs.value.map((doc) => doc.yaml).join('\n---\n');
+    });
+
+    const activeBuildWarnings = computed(() => {
+      const doc = activeBuilder.value;
+      if (!doc) return [];
+
+      const warnings = [];
+      const nameLine = doc.lineStates.find((line) => line.normalizedPath === normalizePath('metadata.name'));
+      const nameValue = String(nameLine?.value || '').trim();
+      if (!nameValue || nameValue === 'string') {
+        warnings.push('建议先填写 metadata.name，避免导出后仍是占位值。');
+      }
+
+      const placeholderLines = doc.lineStates.filter((line) => {
+        if (!line.enabled) return false;
+        if (!['text', 'number'].includes(line.inputKind)) return false;
+        return /^(string|number|integer|boolean)$/i.test(String(line.value || '').trim());
+      });
+
+      if (placeholderLines.length) {
+        warnings.push(`仍有 ${placeholderLines.length} 个字段保持占位值，例如 ${placeholderLines.slice(0, 3).map((line) => line.path).join('、')}。`);
+      }
+
+      return warnings;
+    });
+
+    const buildWizardAlerts = computed(() => {
+      const alerts = [];
+
+      activeBuildWarnings.value.forEach((message) => {
+        alerts.push({
+          level: 'warning',
+          title: '构建提示',
+          message
+        });
+      });
+
+      (activeBuilder.value?.importWarnings || []).forEach((message) => {
+        alerts.push({
+          level: 'info',
+          title: '导入回填提示',
+          message
+        });
+      });
+
+      return alerts;
+    });
+
+    function copyBuildYaml() {
+      if (!buildOutputYaml.value) {
+        showToast('当前没有可复制的 YAML');
+        return;
+      }
+      copyText(buildOutputYaml.value, 'YAML 已复制');
+    }
+
+    function guessDownloadName() {
+      if (buildPreviewDocs.value.length > 1) {
+        return 'k8s-bundle.yaml';
+      }
+      if (activeBuilder.value) {
+        const doc = activeBuilder.value;
+        const name = getBuilderDocumentName(doc).replace(/\s+/g, '-').replace(/[^\w.-]/g, '-');
+        return `${name || doc.resourceKey.toLowerCase()}.yaml`;
+      }
+      return 'k8s-bundle.yaml';
+    }
+
+    function downloadBuildYaml() {
+      if (!buildOutputYaml.value) {
+        showToast('当前没有可导出的 YAML');
+        return;
+      }
+
+      const blob = new Blob([buildOutputYaml.value], { type: 'text/yaml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = guessDownloadName();
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast('YAML 文件已导出');
+    }
+
+    function sendBuildYamlToAnalyzer() {
+      if (!buildOutputYaml.value) {
+        showToast('当前没有可分析的 YAML');
+        return;
+      }
+      analysisInput.value = buildOutputYaml.value;
+      activeTab.value = 'analyze';
+      analyzeYamlInput();
+    }
+
+    function summarizeScalar(value) {
+      if (typeof value === 'string') {
+        return value.length > 80 ? `${value.slice(0, 77)}...` : value;
+      }
+      if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+      if (value === null) return 'null';
+      if (Array.isArray(value)) return `Array(${value.length})`;
+      if (typeof value === 'object') return 'Object';
+      return String(value);
+    }
+
+    const knowledgeByResource = computed(() => {
+      const result = {};
+
+      resourceList.value.forEach((resource) => {
+        const map = new Map();
+        (schemaStore.value.resources[resource.key]?.schema || []).forEach((node) => {
+          const normalized = normalizePath(node.path);
+          if (!normalized) return;
+          const existing = map.get(normalized) || {};
+          map.set(normalized, {
+            path: normalized,
+            displayPath: existing.displayPath || node.path,
+            type: existing.type || node.type || 'Field',
+            description: existing.description || node.description || node.comment || '',
+            comment: existing.comment || node.comment || '',
+            options: existing.options?.length ? existing.options : inferOptions(node, resource.key)
+          });
+        });
+
+        (k8sDict.value[resource.key] || []).forEach((field) => {
+          const normalized = normalizePath(field.path);
+          const existing = map.get(normalized) || {};
+          map.set(normalized, {
+            path: normalized,
+            displayPath: field.path,
+            type: field.type || existing.type || 'Field',
+            description: field.description || existing.description || '',
+            comment: existing.comment || '',
+            options: existing.options || [],
+            demo: field.demo || ''
+          });
+        });
+
+        result[resource.key] = {
+          map,
+          list: [...map.values()].sort((a, b) => b.path.length - a.path.length)
+        };
+      });
+
+      return result;
+    });
+
+    function collectUsedPaths(value, currentPath = '', bucket = []) {
+      if (Array.isArray(value)) {
+        const arrayPath = currentPath ? `${currentPath}[]` : '[]';
+        bucket.push({ actualPath: arrayPath, nodeType: 'array', scalarValue: undefined, valueSummary: `Array(${value.length})` });
+        value.forEach((item) => collectUsedPaths(item, arrayPath, bucket));
+        return bucket;
+      }
+
+      if (value && typeof value === 'object') {
+        if (currentPath) {
+          bucket.push({ actualPath: currentPath, nodeType: 'object', scalarValue: undefined, valueSummary: 'Object' });
+        }
+        Object.entries(value).forEach(([key, child]) => {
+          const nextPath = currentPath ? `${currentPath}.${key}` : key;
+          collectUsedPaths(child, nextPath, bucket);
+        });
+        return bucket;
+      }
+
+      if (currentPath) {
+        bucket.push({ actualPath: currentPath, nodeType: 'scalar', scalarValue: value, valueSummary: summarizeScalar(value) });
+      }
+
+      return bucket;
+    }
+
+    function findKnowledgeMatch(resourceKey, actualPath) {
+      const knowledge = knowledgeByResource.value[resourceKey];
+      if (!knowledge) return null;
+      const normalized = normalizePath(actualPath);
+      if (!normalized) return null;
+
+      if (knowledge.map.has(normalized)) {
+        return { matchType: 'exact', item: knowledge.map.get(normalized), normalized };
+      }
+
+      const ancestor = knowledge.list.find((item) => {
+        if (!normalized.startsWith(item.path + '.')) return false;
+        const type = String(item.type || '').toLowerCase();
+        return type.includes('map[');
+      });
+      if (ancestor) {
+        return { matchType: 'ancestor', item: ancestor, normalized };
+      }
+
+      return null;
+    }
+
+    function compactCommentText(text, limit = 52) {
+      const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+      if (!normalized) return '';
+      return normalized.length > limit ? `${normalized.slice(0, limit - 3)}...` : normalized;
+    }
+
+    function lineCommentForPath(resourceKey, actualPath) {
+      const match = resourceKey ? findKnowledgeMatch(resourceKey, actualPath) : null;
+      if (match?.item) {
+        const shortText = compactCommentText(match.item.comment || match.item.description || '已匹配知识库说明', 34);
+        return shortText;
+      }
+      if (resourceKey) return '未收录字段，请结合原始 YAML 与集群版本复核';
+      return '未识别资源类型，暂无法提供字段说明';
+    }
+
+    function formatYamlScalar(value) {
+      return safeYamlDump(value).replace(/\n/g, ' ');
+    }
+
+    function renderAnnotatedObjectEntries(value, parentPath, indent, resourceKey, lines) {
+      Object.entries(value || {}).forEach(([key, child]) => {
+        const path = parentPath ? `${parentPath}.${key}` : key;
+        const prefix = `${'  '.repeat(indent)}${key}:`;
+        const comment = lineCommentForPath(resourceKey, path);
+
+        if (Array.isArray(child)) {
+          if (!child.length) {
+            lines.push(`${prefix} []${comment ? `  # ${comment}` : ''}`);
+          } else {
+            lines.push(`${prefix}${comment ? `  # ${comment}` : ''}`);
+            renderAnnotatedArrayEntries(child, path, indent + 1, resourceKey, lines);
+          }
+          return;
+        }
+
+        if (child && typeof child === 'object') {
+          const keys = Object.keys(child);
+          if (!keys.length) {
+            lines.push(`${prefix} {}${comment ? `  # ${comment}` : ''}`);
+          } else {
+            lines.push(`${prefix}${comment ? `  # ${comment}` : ''}`);
+            renderAnnotatedObjectEntries(child, path, indent + 1, resourceKey, lines);
+          }
+          return;
+        }
+
+        lines.push(`${prefix} ${formatYamlScalar(child)}${comment ? `  # ${comment}` : ''}`);
+      });
+    }
+
+    function renderAnnotatedArrayEntries(value, parentPath, indent, resourceKey, lines) {
+      value.forEach((item) => {
+        const arrayPath = `${parentPath}[]`;
+        const comment = lineCommentForPath(resourceKey, arrayPath);
+        const prefix = `${'  '.repeat(indent)}-`;
+
+        if (Array.isArray(item)) {
+          if (!item.length) {
+            lines.push(`${prefix} []${comment ? `  # ${comment}` : ''}`);
+          } else {
+            lines.push(`${prefix}${comment ? `  # ${comment}` : ''}`);
+            renderAnnotatedArrayEntries(item, arrayPath, indent + 1, resourceKey, lines);
+          }
+          return;
+        }
+
+        if (item && typeof item === 'object') {
+          const keys = Object.keys(item);
+          if (!keys.length) {
+            lines.push(`${prefix} {}${comment ? `  # ${comment}` : ''}`);
+          } else {
+            lines.push(`${prefix}${comment ? `  # ${comment}` : ''}`);
+            renderAnnotatedObjectEntries(item, arrayPath, indent + 1, resourceKey, lines);
+          }
+          return;
+        }
+
+        lines.push(`${prefix} ${formatYamlScalar(item)}${comment ? `  # ${comment}` : ''}`);
+      });
+    }
+
+    function splitBodyAndInlineComment(rawLine) {
+      const line = String(rawLine || '');
+      const idx = line.indexOf(' #');
+      if (idx === -1) {
+        return {
+          body: line,
+          comment: ''
+        };
+      }
+      return {
+        body: line.slice(0, idx),
+        comment: line.slice(idx + 3).trim()
+      };
+    }
+
+    function normalizeOptionValue(value) {
+      return String(value ?? '').trim().replace(/^['"]|['"]$/g, '').toLowerCase();
+    }
+
+    function dedupeBy(items, keyFn) {
+      const map = new Map();
+      items.forEach((item) => {
+        const key = keyFn(item);
+        if (!map.has(key)) map.set(key, item);
+      });
+      return [...map.values()];
+    }
+
+    function addLimitedUnique(list, value, limit = 3) {
+      if (!value || list.includes(value) || list.length >= limit) return;
+      list.push(value);
+    }
+
+    function validateWorkloadSelectorConsistency(resourceKey, doc, issues) {
+      if (!['Deployment', 'StatefulSet'].includes(resourceKey)) return;
+
+      const selector = resolveSchemaPath(doc, 'spec.selector.matchLabels');
+      const templateLabels = resolveSchemaPath(doc, 'spec.template.metadata.labels');
+      if (!selector.found || !templateLabels.found) return;
+      if (!selector.value || typeof selector.value !== 'object' || Array.isArray(selector.value)) return;
+      if (!templateLabels.value || typeof templateLabels.value !== 'object' || Array.isArray(templateLabels.value)) return;
+
+      const missingKeys = Object.entries(selector.value)
+        .filter(([key, value]) => !Object.prototype.hasOwnProperty.call(templateLabels.value, key) || templateLabels.value[key] !== value)
+        .map(([key]) => key);
+
+      if (missingKeys.length) {
+        issues.push({
+          severity: 'warning',
+          path: `spec.selector.matchLabels.${missingKeys[0]}`,
+          paths: [
+            ...missingKeys.map((key) => `spec.selector.matchLabels.${key}`),
+            'spec.template.metadata.labels'
+          ],
+          message: `spec.selector.matchLabels 中的 ${missingKeys.join('、')} 未在 spec.template.metadata.labels 中以相同值出现，Deployment 将无法正确匹配到自己创建的 Pod。`
+        });
+      }
+    }
+
+    function analyzeDocument(doc, index) {
+      const issues = [];
+      if (!doc || typeof doc !== 'object' || Array.isArray(doc)) {
+        return {
+          index,
+          kindName: '',
+          resourceKey: '',
+          apiVersion: '',
+          name: '',
+          namespace: '',
+          knownFields: [],
+          unknownFields: [],
+          issues: [{ severity: 'error', message: '当前文档不是合法的 K8s 对象结构。' }]
+        };
+      }
+
+      const kindName = String(doc.kind || '').trim();
+      const apiVersion = String(doc.apiVersion || '').trim();
+      const metadata = doc.metadata && typeof doc.metadata === 'object' ? doc.metadata : {};
+      const name = String(metadata.name || '').trim();
+      const namespace = String(metadata.namespace || '').trim() || 'default';
+      const resourceKey = resourceKindLookup.value.get(kindName.toLowerCase()) || '';
+
+      if (!kindName) issues.push({ severity: 'error', path: 'kind', message: '缺少 kind。' });
+      if (!apiVersion) issues.push({ severity: 'warning', path: 'apiVersion', message: '缺少 apiVersion。' });
+      if (!name) issues.push({ severity: 'warning', path: 'metadata.name', message: '缺少 metadata.name。' });
+      if (!resourceKey) {
+        issues.push({ severity: 'warning', message: kindName ? `当前知识库尚未收录 kind=${kindName}。` : '无法根据 kind 匹配当前知识库。' });
+      }
+
+      const rawPaths = dedupeBy(collectUsedPaths(doc), (item) => item.actualPath);
+      const knownMap = new Map();
+      const unknownFields = [];
+
+      rawPaths.forEach((entry) => {
+        const match = resourceKey ? findKnowledgeMatch(resourceKey, entry.actualPath) : null;
+
+        if (match) {
+          const key = match.item.path;
+          const aggregate = knownMap.get(key) || {
+            knowledgePath: key,
+            displayPath: match.item.displayPath,
+            type: match.item.type,
+            description: match.item.description || match.item.comment || '该字段已被当前知识库匹配到。',
+            matchType: match.matchType,
+            examples: [],
+            values: []
+          };
+
+          if (aggregate.matchType !== 'exact' && match.matchType === 'exact') {
+            aggregate.matchType = 'exact';
+          }
+
+          addLimitedUnique(aggregate.examples, entry.actualPath);
+          if (entry.scalarValue !== undefined) addLimitedUnique(aggregate.values, summarizeScalar(entry.scalarValue));
+          knownMap.set(key, aggregate);
+
+          if (match.matchType === 'exact' && match.item.options?.length && entry.scalarValue !== undefined) {
+            const currentValue = normalizeOptionValue(entry.scalarValue);
+            const valid = match.item.options.some((option) => normalizeOptionValue(option) === currentValue);
+            if (!valid) {
+              issues.push({
+                severity: 'warning',
+                path: entry.actualPath,
+                message: `${entry.actualPath} 的值 "${summarizeScalar(entry.scalarValue)}" 不在建议选项中：${match.item.options.join(' / ')}。`
+              });
+            }
+          }
+        } else {
+          unknownFields.push({
+            actualPath: entry.actualPath,
+            valueSummary: entry.valueSummary,
+            reason: resourceKey ? '当前 JSON 词典与骨架中没有收录该路径，可能是新字段、版本差异、手写扩展或拼写问题。' : '由于当前资源类型未被识别，暂时无法给出参数说明。'
+          });
+        }
+      });
+
+      validateWorkloadSelectorConsistency(resourceKey, doc, issues);
+
+      return {
+        index,
+        kindName,
+        resourceKey,
+        apiVersion,
+        name,
+        namespace,
+        knownFields: [...knownMap.values()].sort((a, b) => {
+          if (a.matchType !== b.matchType) return a.matchType === 'exact' ? -1 : 1;
+          return a.displayPath.localeCompare(b.displayPath);
+        }),
+        unknownFields: dedupeBy(unknownFields, (item) => item.actualPath),
+        issues: dedupeBy(issues, (item) => `${item.severity}:${item.message}`)
+      };
+    }
+
+    function formatYamlError(error) {
+      if (error && error.mark) {
+        return `第 ${error.mark.line + 1} 行，第 ${error.mark.column + 1} 列：${error.reason || error.message}`;
+      }
+      return error?.message || '未知 YAML 解析错误';
+    }
+
+    function analyzeYamlInput() {
+      analysisError.value = '';
+      analysisResults.value = [];
+      analysisDocuments.value = [];
+
+      const text = String(analysisInput.value || '').trim();
+      if (!text) {
+        analysisError.value = '请先粘贴或上传 YAML 内容。';
+        return;
+      }
+
+      try {
+        const docs = [];
+        jsyaml.loadAll(text, (doc) => docs.push(doc));
+        if (!docs.length) {
+          throw new Error('未识别到任何 YAML 文档。');
+        }
+
+        analysisDocuments.value = docs;
+        analysisResults.value = docs.map((doc, index) => analyzeDocument(doc, index));
+        showToast(`已完成 ${docs.length} 个 YAML 文档分析`);
+      } catch (error) {
+        analysisDocuments.value = [];
+        analysisError.value = formatYamlError(error);
+      }
+    }
+
+    function handleYamlFileChange(event) {
+      const [file] = event.target.files || [];
+      if (!file) return;
+
+      importedFileName.value = file.name;
+      const reader = new FileReader();
+      reader.onload = () => {
+        analysisInput.value = String(reader.result || '');
+        analyzeYamlInput();
+      };
+      reader.onerror = () => {
+        analysisError.value = '读取文件失败，请重试。';
+      };
+      reader.readAsText(file, 'utf-8');
+    }
+
+    function openYamlFilePicker() {
+      yamlFileInput.value?.click();
+    }
+
+    const analysisSummary = computed(() => {
+      return analysisResults.value.reduce((summary, doc) => {
+        summary.documents += 1;
+        if (doc.resourceKey) summary.recognized += 1;
+        summary.unknown += doc.unknownFields.length;
+        summary.issues += doc.issues.length;
+        return summary;
+      }, { documents: 0, recognized: 0, unknown: 0, issues: 0 });
+    });
+
+    const analysisSourceLines = computed(() => {
+      const lines = buildYamlCompareLines(analysisInput.value);
+      let docIndex = 0;
+
+      return lines.map((line) => {
+        const decorated = {
+          ...line,
+          docIndex,
+          resourceKey: analysisResults.value[docIndex]?.resourceKey || ''
+        };
+
+        if (String(line.raw || '').trim() === '---') {
+          docIndex += 1;
+        }
+
+        return decorated;
+      });
+    });
+
+    const analysisAnnotatedLines = computed(() => {
+      return analysisSourceLines.value.map((line) => {
+        const trimmed = String(line.raw || '').trim();
+        if (!trimmed || trimmed === '---' || trimmed.startsWith('#')) {
+          return { ...line };
+        }
+
+        const { body } = splitBodyAndInlineComment(line.raw);
+        const parsedComment = lineCommentForPath(line.resourceKey, line.path || line.normalizedPath);
+        if (!parsedComment) return { ...line };
+
+        return {
+          ...line,
+          raw: `${body}  # ${parsedComment}`
+        };
+      });
+    });
+
+    const analysisAnnotatedYaml = computed(() => {
+      return analysisAnnotatedLines.value.map((line) => line.raw).join('\n');
+    });
+
+    function compareLineMatchesPath(line, candidatePath) {
+      const linePath = normalizePath(line?.normalizedPath || line?.path || '');
+      const target = normalizePath(candidatePath || '');
+      if (!linePath || !target) return false;
+      return linePath === target || linePath.startsWith(target + '.') || target.startsWith(linePath + '.');
+    }
+
+    function compareLineExactPath(line, candidatePath) {
+      const linePath = normalizePath(line?.normalizedPath || line?.path || '');
+      const target = normalizePath(candidatePath || '');
+      if (!linePath || !target) return false;
+      return linePath === target;
+    }
+
+    function getCompareLineMeta(line) {
+      const doc = analysisResults.value[line?.docIndex];
+      if (!doc) return { tone: '', label: '', message: '' };
+
+      const unknown = doc.unknownFields.find((field) => compareLineExactPath(line, field.actualPath));
+      if (unknown) {
+        return {
+          tone: 'danger',
+          label: '未知字段',
+          message: unknown.reason || '当前字段未被知识库收录'
+        };
+      }
+
+      const issue = doc.issues.find((item) => {
+        const paths = Array.isArray(item.paths) ? item.paths : [item.path].filter(Boolean);
+        return paths.some((path) => compareLineExactPath(line, path));
+      });
+      if (issue) {
+        return {
+          tone: 'warning',
+          label: '问题提示',
+          message: itemSafeMessage(issue)
+        };
+      }
+
+      return { tone: '', label: '', message: '' };
+    }
+
+    function itemSafeMessage(issue) {
+      return String(issue?.message || '').trim();
+    }
+
+    function getManualDetailForLine(line) {
+      if (!line?.resourceKey) return null;
+      if (getCompareLineMeta(line).tone) return null;
+
+      const match = findKnowledgeMatch(line.resourceKey, line.path || line.normalizedPath);
+      if (!match?.item) return null;
+
+      return {
+        displayPath: match.item.displayPath || line.path || line.normalizedPath,
+        type: match.item.type || 'Field',
+        description: match.item.description || match.item.comment || '当前字段暂无更详细说明。',
+        demo: match.item.demo || '',
+        matchType: match.matchType
+      };
+    }
+
+    function closeManualDetail() {
+      activeManualDetail.value = null;
+    }
+
+    function stripInlineCommentPreservingIndent(line) {
+      if (!line) return '';
+      const hashIndex = line.indexOf(' #');
+      return hashIndex >= 0 ? line.slice(0, hashIndex) : line;
+    }
+
+    function buildYamlCompareLines(text) {
+      const lines = String(text || '').replace(/\r\n/g, '\n').split('\n');
+      const result = [];
+      const stack = [];
+      let lastPath = '';
+
+      lines.forEach((raw, index) => {
+        const trimmed = raw.trim();
+        const lineData = {
+          lineNumber: index + 1,
+          raw,
+          path: '',
+          normalizedPath: '',
+          clickable: false
+        };
+
+        if (!trimmed) {
+          result.push(lineData);
+          return;
+        }
+
+        if (trimmed === '---') {
+          stack.length = 0;
+          lastPath = '';
+          result.push(lineData);
+          return;
+        }
+
+        if (trimmed.startsWith('#')) {
+          lineData.path = lastPath;
+          lineData.normalizedPath = normalizePath(lastPath);
+          lineData.clickable = Boolean(lineData.normalizedPath);
+          result.push(lineData);
+          return;
+        }
+
+        const indentSpaces = (raw.match(/^ */) || [''])[0].length;
+        const indentLevel = Math.floor(indentSpaces / 2);
+        const content = stripInlineCommentPreservingIndent(trimmed).trim();
+
+        while (stack.length > indentLevel) stack.pop();
+
+        if (content.startsWith('- ')) {
+          const afterDash = content.slice(2).trim();
+          const parentPath = stack[indentLevel - 1] || '';
+          const arrayPath = parentPath ? `${parentPath}[]` : '[]';
+          let currentPath = arrayPath;
+
+          if (afterDash.includes(':')) {
+            const colonIndex = afterDash.indexOf(':');
+            const key = afterDash.slice(0, colonIndex).trim();
+            currentPath = `${arrayPath}.${key}`;
+          }
+
+          stack[indentLevel] = arrayPath;
+          lineData.path = currentPath;
+          lineData.normalizedPath = normalizePath(currentPath);
+          lineData.clickable = Boolean(lineData.normalizedPath);
+          lastPath = currentPath || lastPath;
+          result.push(lineData);
+          return;
+        }
+
+        if (content.includes(':')) {
+          const colonIndex = content.indexOf(':');
+          const key = content.slice(0, colonIndex).trim();
+          const parentPath = stack[indentLevel - 1] || '';
+          const currentPath = parentPath ? `${parentPath}.${key}` : key;
+          stack[indentLevel] = currentPath;
+          lineData.path = currentPath;
+          lineData.normalizedPath = normalizePath(currentPath);
+          lineData.clickable = Boolean(lineData.normalizedPath);
+          lastPath = currentPath;
+          result.push(lineData);
+          return;
+        }
+
+        lineData.path = lastPath;
+        lineData.normalizedPath = normalizePath(lastPath);
+        lineData.clickable = Boolean(lineData.normalizedPath);
+        result.push(lineData);
+      });
+
+      return result;
+    }
+
+    function selectComparePath(line) {
+      if (!line?.normalizedPath) return;
+      activeComparePath.value = activeComparePath.value === line.normalizedPath ? '' : line.normalizedPath;
+    }
+
+    function handleAnnotatedLineClick(line) {
+      selectComparePath(line);
+      const detail = getManualDetailForLine(line);
+      if (detail) {
+        activeManualDetail.value = detail;
+      }
+    }
+
+    function copyAnalysisSourceYaml() {
+      if (!analysisInput.value.trim()) {
+        showToast('当前没有可复制的原始 YAML');
+        return;
+      }
+      copyText(analysisInput.value, '原始 YAML 已复制');
+    }
+
+    function copyAnnotatedAnalysisYaml() {
+      if (!analysisAnnotatedYaml.value.trim()) {
+        showToast('当前没有可复制的注释版 YAML');
+        return;
+      }
+      copyText(analysisAnnotatedYaml.value, '注释版 YAML 已复制');
+    }
+
+    function highlightPreview() {
+      if (!previewCodeEl.value || !window.hljs) return;
+      previewCodeEl.value.querySelectorAll('code.language-yaml').forEach((block) => {
+        block.removeAttribute('data-highlighted');
+        hljs.highlightElement(block);
+      });
+    }
+
+    watch(buildOutputYaml, () => nextTick(highlightPreview));
+    watch(includeComments, () => nextTick(highlightPreview));
+    watch(activeBuilderId, () => nextTick(highlightPreview));
+    watch(analysisInput, () => {
+      activeComparePath.value = '';
+    });
+    watch(analysisAnnotatedYaml, () => {
+      activeComparePath.value = '';
+    });
+
+    watch(activeBuilder, (doc) => {
+      if (!doc && builderResources.value.length) {
+        activeBuilderId.value = builderResources.value[0].id;
+        return;
+      }
+      if (!doc) {
+        buildWizardStep.value = 1;
+      }
+    }, { immediate: true });
+
+    watch(builderFieldGroups, (groups) => {
+      if (!groups.length) {
+        activeBuilderGroupLabel.value = '';
+        activeBuilderFieldLineKey.value = '';
+        return;
+      }
+      if (!groups.some((group) => group.label === activeBuilderGroupLabel.value)) {
+        activeBuilderGroupLabel.value = groups[0].label;
+      }
+    }, { immediate: true });
+
+    watch(activeBuilderGroupFields, (lines) => {
+      if (!lines.length) {
+        activeBuilderFieldLineKey.value = '';
+        return;
+      }
+      if (!lines.some((line) => line.lineKey === activeBuilderFieldLineKey.value)) {
+        activeBuilderFieldLineKey.value = lines[0].lineKey;
+      }
+    }, { immediate: true });
+
+    async function loadData() {
+      loading.value = true;
+      loadError.value = '';
+
+      try {
+        const [dictResp, schemaResp] = await Promise.all([
+          fetch('./k8s-dict.json'),
+          fetch('./k8s-schema.json')
+        ]);
+
+        if (!dictResp.ok) throw new Error(`k8s-dict.json HTTP ${dictResp.status}: ${dictResp.statusText}`);
+        if (!schemaResp.ok) throw new Error(`k8s-schema.json HTTP ${schemaResp.status}: ${schemaResp.statusText}`);
+
+        const [dictData, schemaData] = await Promise.all([
+          dictResp.json(),
+          schemaResp.json()
+        ]);
+
+        k8sDict.value = dictData;
+        schemaStore.value = schemaData;
+        newResourceKey.value = schemaData.defaultResource || schemaData.resourceOrder?.[0] || 'Deployment';
+
+        loading.value = false;
+      } catch (error) {
+        loading.value = false;
+        loadError.value = `无法加载数据文件：${error.message}。请确认 builder.html、index.html、k8s-dict.json、k8s-schema.json 位于同一目录，并通过静态服务器或 GitHub Pages 访问。`;
+      }
+    }
+
+    onMounted(() => {
+      loadData();
+    });
+
+    return {
+      activeBuildWarnings,
+      activeBuilder,
+      activeBuilderId,
+      activeBuilderEnabledCount,
+      activeBuilderIndex,
+      activeBuilderField,
+      activeBuilderFieldIndex,
+      activeBuilderFieldLineKey,
+      activeBuilderGroupFields,
+      activeBuilderGroup,
+      activeBuilderGroupIndex,
+      activeBuilderGroupLabel,
+      activeManualDetail,
+      activeQuickFields,
+      activeTab,
+      activeComparePath,
+      analysisError,
+      analysisAnnotatedLines,
+      analysisInput,
+      analysisAnnotatedYaml,
+      analysisImportOpen,
+      analysisOverviewOpen,
+      analysisResults,
+      analysisSourceLines,
+      analysisSummary,
+      analyzeYamlInput,
+      activateBuilderDocument,
+      appendNextResourceToYaml,
+      applyPreset,
+      applySmartBinding,
+      buildWizardAlerts,
+      buildStepBadgeClass,
+      buildStepButtonClass,
+      buildPreviewDocs,
+      buildSteps,
+      buildWizardStep,
+      buildOutputYaml,
+      builderFieldGroups,
+      builderResources,
+      builderSearch,
+      stepFieldSearch,
+      canAdvanceBuildStep,
+      canAppendResourceToYaml,
+      canOpenBuildStep,
+      changeBuilderResourceKind,
+      copyAnnotatedAnalysisYaml,
+      copyAnalysisSourceYaml,
+      copyBuildYaml,
+      copyImportedOriginalYaml,
+      closeManualDetail,
+      currentBuildStepMeta,
+      currentBuildStepLines,
+      currentBuildStepContextHints,
+      currentBuildStepVisibleLines,
+      downloadBuildYaml,
+      fieldLinePreview,
+      isFieldCardCollapsed,
+      getBuilderDocumentName,
+      getBuilderDocumentNamespace,
+      getCompareLineMeta,
+      goBuildStep,
+      handleYamlFileChange,
+      importAllAnalysisToBuilder,
+      importAnalysisDocument,
+      importedFileName,
+      includeComments,
+      loadData,
+      loadError,
+      loading,
+      newResourceKey,
+      openYamlFilePicker,
+      previewCodeEl,
+      prevBuildStep,
+      prevBuilderField,
+      prevBuilderGroup,
+      quickFieldLabel,
+      quickFieldQuestion,
+      removeBuilderResource,
+      resourceList,
+      nextBuildStep,
+      nextBuilderField,
+      nextBuilderGroup,
+      handleAnnotatedLineClick,
+      toggleFieldCard,
+      selectComparePath,
+      selectBuilderField,
+      selectBuilderGroup,
+      sendBuildYamlToAnalyzer,
+      showEnabledOnly,
+      showOptionalStepFields,
+      showSmartBindingForLine,
+      smartBindingCandidates,
+      stepFieldPlaceholder,
+      stepFieldQuestion,
+      toastMessage,
+      toastVisible,
+      toggleLine,
+      totalDictEntries,
+      updateCustomBlock,
+      updateLineValue,
+      yamlFileInput,
+      addBuilderResource
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
