@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>K8s 生产级 YAML 配置速查手册</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            k8s: '#326CE5',
+            k8sDark: '#2457b5',
+            sidebar: '#0b1220',
+            mainBg: '#f6f8fc'
+          },
+          boxShadow: {
+            panel: '0 18px 48px rgba(15, 23, 42, 0.08)',
+            drawer: '-12px 0 36px rgba(15, 23, 42, 0.12)'
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    code, pre, .mono { font-family: 'JetBrains Mono', 'Consolas', monospace; }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+    .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+    .nav-item {
+      transition: all 0.18s ease;
+      border-left: 3px solid transparent;
+    }
+    .nav-item:hover {
+      background: #152033;
+      border-left-color: #334155;
+    }
+    .nav-item.active {
+      background: linear-gradient(90deg, rgba(50, 108, 229, 0.22) 0%, rgba(11, 18, 32, 0.96) 100%);
+      border-left-color: #60a5fa;
+    }
+
+    .sidebar-shell {
+      transition: width 0.24s ease;
+      overflow: hidden;
+    }
+
+    .markdown-shell {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+    }
+
+    .markdown-head {
+      background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .code-line {
+      transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+      border: 1px solid transparent;
+    }
+    .code-line:hover {
+      background: #f8fbff;
+      border-color: #dbeafe;
+    }
+    .code-line.related {
+      background: #f8fbff;
+      border-color: #e0ecff;
+    }
+    .code-line.active {
+      background: linear-gradient(90deg, rgba(50, 108, 229, 0.08) 0%, rgba(50, 108, 229, 0.02) 100%);
+      border-color: rgba(50, 108, 229, 0.34);
+      box-shadow: inset 0 0 0 1px rgba(50, 108, 229, 0.1);
+    }
+    .code-line.folded {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+    }
+
+    .yaml-fold-toggle {
+      transition: background 0.16s ease, color 0.16s ease;
+    }
+    .yaml-fold-toggle:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .drawer-resize-handle {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 14px;
+      transform: translateX(-50%);
+      cursor: col-resize;
+    }
+    .drawer-resize-handle::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 4px;
+      height: 80px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
+      transform: translate(-50%, -50%);
+    }
+
+    .hljs {
+      background: #f6f8fa !important;
+      color: #0f172a !important;
+      border-radius: 0 0 18px 18px;
+      padding: 18px !important;
+    }
+
+    .line-clamp-2 {
+      display: -webkit-box;
+      line-clamp: 2;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .toast-anim {
+      animation: toastIn 0.24s ease, toastOut 0.3s ease 1.6s forwards;
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-12px); }
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      border: 3px solid #dbeafe;
+      border-top-color: #326CE5;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="bg-mainBg text-slate-800">
+
+<div id="app" class="relative flex h-screen overflow-hidden">
+  <div
+    v-if="!isSidebarDesktop && sidebarMobileOpen"
+    class="fixed inset-0 z-30 bg-slate-950/45 backdrop-blur-[1px]"
+    @click="closeMobileSidebar"
+  ></div>
+
+  <aside
+    class="sidebar-shell bg-sidebar text-white flex flex-col shadow-2xl transition-transform duration-300"
+    :class="isSidebarDesktop ? 'relative flex-shrink-0 z-20' : (sidebarMobileOpen ? 'fixed inset-y-0 left-0 z-40 translate-x-0' : 'fixed inset-y-0 left-0 z-40 -translate-x-full pointer-events-none')"
+    :style="sidebarStyle"
+  >
+    <div class="px-5 py-5 border-b border-slate-800/80">
+      <div class="flex items-start justify-between gap-3" :class="isSidebarCompact ? 'flex-col items-center' : ''">
+        <div class="w-10 h-10 rounded-xl bg-k8s flex items-center justify-center shadow-lg shadow-blue-950/30">
+          <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0L1.5 6v12L12 24l10.5-6V6L12 0zm0 2.18l8.5 4.9v9.84L12 21.82l-8.5-4.9V7.08L12 2.18z"></path>
+            <path d="M12 6a1 1 0 00-.5.13l-4 2.31a1 1 0 00-.5.87v4.38a1 1 0 00.5.87l4 2.31a1 1 0 001 0l4-2.31a1 1 0 00.5-.87V9.31a1 1 0 00-.5-.87l-4-2.31A1 1 0 0012 6z"></path>
+          </svg>
+        </div>
+        <div v-if="!isSidebarCompact" class="min-w-0 flex-1">
+          <h1 class="text-sm font-bold tracking-wide">K8s YAML 速查手册</h1>
+          <p class="text-xs text-slate-400 mt-0.5">Schema + Explain + Drawer</p>
+        </div>
+        <button
+          type="button"
+          class="rounded-xl border border-slate-800 bg-slate-900/60 p-2 text-slate-300 hover:border-slate-700 hover:text-white"
+          :title="isSidebarDesktop ? (isSidebarCompact ? '展开菜单' : '折叠菜单') : '关闭菜单'"
+          @click="isSidebarDesktop ? toggleSidebar() : closeMobileSidebar()"
+        >
+          <svg
+            v-if="isSidebarDesktop"
+            class="w-4 h-4 transition-transform duration-200"
+            :class="isSidebarCompact ? 'rotate-180' : ''"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+          >
+            <path d="m15 19-7-7 7-7"></path>
+          </svg>
+          <svg
+            v-else
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+          >
+            <path d="M18 6 6 18M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div v-if="!isSidebarCompact" class="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+        <p class="text-[11px] uppercase tracking-[0.16em] text-slate-500">Data Source</p>
+        <p class="mt-2 text-xs text-slate-300 leading-5">
+          <code class="mono text-slate-200">k8s-schema.json</code> 管骨架结构<br />
+          <code class="mono text-slate-200">k8s-dict.json</code> 管字段说明与 Demo
+        </p>
+      </div>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto py-4">
+      <p class="px-5 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500" :class="isSidebarCompact ? 'text-center px-2' : ''">
+        {{ isSidebarCompact ? 'Menu' : 'Core Resources' }}
+      </p>
+      <button
+        v-for="res in resourceList"
+        :key="res.key"
+        type="button"
+        class="nav-item w-full text-left group"
+        :class="[isSidebarCompact ? 'px-2 py-3' : 'px-5 py-3', { active: activeResource === res.key }]"
+        :title="`${res.key} · ${res.subtitle}`"
+        @click="selectResource(res.key)"
+      >
+        <div v-if="!isSidebarCompact" class="flex items-start gap-3">
+          <span
+            class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
+            :class="activeResource === res.key ? 'bg-k8s text-white' : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-200'"
+          >
+            {{ res.icon }}
+          </span>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm font-semibold truncate" :class="activeResource === res.key ? 'text-white' : 'text-slate-200'">{{ res.key }}</p>
+              <span class="text-[10px] rounded-full px-2 py-0.5 bg-slate-900/70 text-slate-400">{{ getResourceFieldCount(res.key) }}</span>
+            </div>
+            <p class="mt-1 text-[11px] leading-5" :class="activeResource === res.key ? 'text-blue-200' : 'text-slate-500'">{{ res.subtitle }}</p>
+            <p class="mt-1 text-[10px] leading-5 text-slate-500">{{ res.focus }}</p>
+          </div>
+        </div>
+
+        <div v-else class="flex flex-col items-center gap-2">
+          <span
+            class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
+            :class="activeResource === res.key ? 'bg-k8s text-white' : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-200'"
+          >
+            {{ res.icon }}
+          </span>
+          <span class="rounded-full bg-slate-900/70 px-2 py-0.5 text-[10px] text-slate-400">{{ getResourceFieldCount(res.key) }}</span>
+        </div>
+      </button>
+    </nav>
+
+    <div v-if="!isSidebarCompact" class="px-5 py-4 border-t border-slate-800/80">
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+        <p class="text-[10px] uppercase tracking-[0.16em] text-slate-500">Tips</p>
+        <p class="mt-1 text-xs text-slate-300 leading-5">点击中间 YAML 行即可打开右侧抽屉。抽屉支持拖拽拉宽，更适合查看长说明和完整示例。</p>
+      </div>
+    </div>
+  </aside>
+
+  <div class="flex-1 min-w-0 flex flex-col">
+    <header class="bg-white/90 backdrop-blur border-b border-slate-200 px-4 sm:px-6 py-4 flex items-start gap-4 shadow-sm z-10">
+      <button
+        v-if="!isSidebarDesktop"
+        type="button"
+        class="mt-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900"
+        title="打开资源菜单"
+        @click="openMobileSidebar"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+
+      <div class="flex-1 min-w-0">
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+          <input
+            v-model="searchQuery"
+            type="text"
+            class="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-10 py-3 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-k8s/20 focus:border-k8s"
+            placeholder="支持字段名、中文说明、完整路径，或 kubectl explain deployment.spec.template.spec.containers.resources"
+          />
+          <button
+            v-if="searchQuery"
+            type="button"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            @click="clearSearch"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M18 6 6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <span class="rounded-md bg-slate-100 px-2.5 py-1 text-slate-500 mono">kubectl explain deployment.spec.template.spec.containers.resources</span>
+          <span class="text-slate-400">支持 explain 风格查询，也支持模糊搜索字段、路径和中文说明。</span>
+        </div>
+      </div>
+      <div class="hidden sm:flex items-center gap-2 text-xs text-slate-400 pt-1">
+        <span class="rounded-md bg-slate-100 px-2 py-1 mono">Ctrl+K</span>
+        <span>快速搜索</span>
+      </div>
+    </header>
+
+    <main class="relative flex-1 min-h-0 overflow-hidden">
+      <div v-if="loading" class="h-full flex flex-col items-center justify-center gap-4">
+        <div class="loading-spinner"></div>
+        <p class="text-sm text-slate-500">正在加载配置数据...</p>
+      </div>
+
+      <div v-else-if="loadError" class="h-full flex flex-col items-center justify-center gap-4 px-6">
+        <svg class="w-16 h-16 text-red-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M12 9v3.75m0 3.75h.008v.008H12v-.008zm9-3.75a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <p class="text-lg font-semibold text-slate-700">数据加载失败</p>
+        <p class="max-w-xl text-center text-sm text-slate-500 leading-6">{{ loadError }}</p>
+        <button type="button" class="rounded-xl bg-k8s px-4 py-2 text-sm font-medium text-white hover:bg-k8sDark" @click="loadData">
+          重新加载
+        </button>
+      </div>
+
+      <div v-else class="h-full relative">
+        <section class="h-full overflow-y-auto p-4 sm:p-6 transition-[padding-right] duration-300" :style="mainPaneStyle">
+          <div class="space-y-6">
+            <div class="rounded-3xl bg-white border border-slate-200 shadow-panel overflow-hidden">
+              <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-6 py-6 text-white">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-3 flex-wrap">
+                      <span class="rounded-xl bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-200">Core Resource</span>
+                      <span v-if="isExplainMode" class="rounded-xl border border-blue-400/20 bg-blue-500/15 px-3 py-1 text-[11px] font-semibold text-blue-200">Explain 模式</span>
+                    </div>
+                    <h2 class="mt-3 text-3xl font-bold tracking-tight">{{ activeResource }}</h2>
+                    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-300">{{ activeResourceMeta.summary }}</p>
+                  </div>
+                  <div class="grid w-full gap-3 sm:grid-cols-3 sm:min-w-[280px]">
+                    <div class="rounded-2xl bg-white/5 border border-white/10 px-4 py-3">
+                      <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400">生产字段</p>
+                      <p class="mt-1 text-xl font-bold">{{ activeFields.length }}</p>
+                    </div>
+                    <div class="rounded-2xl bg-white/5 border border-white/10 px-4 py-3">
+                      <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400">骨架行数</p>
+                      <p class="mt-1 text-xl font-bold">{{ visibleBlueprint.length }} / {{ activeBlueprint.length }}</p>
+                    </div>
+                    <div class="rounded-2xl bg-white/5 border border-white/10 px-4 py-3">
+                      <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400">当前定位</p>
+                      <p class="mt-1 text-sm font-semibold break-all">{{ selectedRecord ? selectedRecord.path : '点击中间 YAML 字段' }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2 flex-wrap text-xs text-slate-500">
+                  <span class="rounded-full bg-blue-50 text-blue-600 px-3 py-1">中间骨架来自 <code class="mono">k8s-schema.json</code></span>
+                  <span class="rounded-full bg-emerald-50 text-emerald-600 px-3 py-1">右侧说明来自 <code class="mono">k8s-dict.json</code></span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:border-slate-300 hover:text-slate-900" @click="copyText(activeBlueprintText, '资源骨架 YAML 已复制')">
+                    复制骨架 YAML
+                  </button>
+                  <button v-if="selectedExplainCommand" type="button" class="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100" @click="copyText(selectedExplainCommand, 'kubectl explain 命令已复制')">
+                    复制 explain 命令
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="searchQuery" class="rounded-3xl bg-white border border-slate-200 shadow-panel">
+              <div class="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 class="text-base font-semibold text-slate-800">{{ isExplainMode ? 'Explain 查询结果' : '搜索结果' }}</h3>
+                  <p class="mt-1 text-sm text-slate-500">共匹配 {{ searchResults.length }} 项。点击某一项后会切换资源并打开右侧抽屉。</p>
+                </div>
+                <div v-if="isExplainMode" class="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 mono">
+                  {{ explainState.command || searchQuery }}
+                </div>
+              </div>
+
+              <div v-if="searchResults.length > 0" class="p-4 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                <button
+                  v-for="(item, idx) in visibleSearchResults"
+                  :key="item.resource + '-' + item.path + '-' + idx"
+                  type="button"
+                  class="rounded-2xl border px-4 py-3 text-left transition-all"
+                  :class="isSelectedRecord(item) ? 'border-k8s bg-blue-50 shadow-sm' : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'"
+                  @click="openSearchResult(item)"
+                >
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="rounded-md bg-slate-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-200">{{ item.resource }}</span>
+                    <span class="rounded-md px-2 py-1 text-[10px]" :class="item.source === 'dict' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'">
+                      {{ item.source === 'dict' ? '生产字段' : '骨架字段' }}
+                    </span>
+                  </div>
+                  <code class="mt-3 block text-[12px] leading-5 break-all text-slate-800 mono">{{ item.path }}</code>
+                  <p class="mt-2 text-xs leading-5 text-slate-500 line-clamp-2">{{ item.description || item.comment || '该字段用于当前资源骨架结构说明。' }}</p>
+                </button>
+              </div>
+
+              <div v-else class="px-5 py-10 text-center text-sm text-slate-500">
+                没有匹配到相关字段，可尝试缩短路径或改用中文关键词。
+              </div>
+            </div>
+
+            <div class="markdown-shell">
+              <div class="markdown-head px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Markdown-like YAML</p>
+                  <h3 class="mt-1 text-lg font-semibold text-slate-900">{{ activeResource }} 核心骨架</h3>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
+                  <button type="button" class="rounded-full bg-white px-3 py-1 border border-slate-200 hover:border-slate-300 hover:text-slate-900" @click="collapseTopLevelBlueprint">
+                    折叠一级
+                  </button>
+                  <button type="button" class="rounded-full bg-white px-3 py-1 border border-slate-200 hover:border-slate-300 hover:text-slate-900" @click="expandAllBlueprint">
+                    全部展开
+                  </button>
+                  <span class="rounded-full bg-white px-3 py-1 border border-slate-200">点击行打开抽屉</span>
+                  <span class="rounded-full bg-white px-3 py-1 border border-slate-200">{{ visibleBlueprint.length }} / {{ activeBlueprint.length }} lines</span>
+                </div>
+              </div>
+
+              <div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                  <span class="w-3 h-3 rounded-full bg-red-300"></span>
+                  <span class="w-3 h-3 rounded-full bg-amber-300"></span>
+                  <span class="w-3 h-3 rounded-full bg-emerald-300"></span>
+                </div>
+                <div class="text-xs text-slate-500 mono">YAML</div>
+                <div class="text-xs text-slate-400">结构骨架接近 Markdown 文档中的代码块样式</div>
+              </div>
+
+              <div class="px-3 py-3">
+                <div
+                  v-for="node in visibleBlueprint"
+                  :key="node.nodeKey"
+                  class="code-line w-full rounded-xl px-3 py-2"
+                  :class="schemaLineClass(node)"
+                >
+                  <div class="flex items-start gap-3">
+                    <button
+                      v-if="node.isCollapsible"
+                      type="button"
+                      class="yaml-fold-toggle mt-[1px] flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md text-slate-400"
+                      :title="node.isCollapsed ? '展开子结构' : '折叠子结构'"
+                      @click.stop="toggleBlueprintCollapse(node)"
+                    >
+                      <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="node.isCollapsed ? '-rotate-90' : ''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="m6 9 6 6 6-6"></path>
+                      </svg>
+                    </button>
+                    <span v-else class="w-5 flex-shrink-0"></span>
+
+                    <button type="button" class="min-w-0 flex-1 text-left" @click="openBlueprintNode(node)">
+                      <div class="flex items-start gap-4">
+                        <span class="w-8 pt-[2px] text-right text-[11px] text-slate-400 mono flex-shrink-0">{{ String(node.lineNumber).padStart(2, '0') }}</span>
+                        <div class="min-w-0 flex-1">
+                          <div class="flex flex-wrap items-start gap-x-2 gap-y-1" :style="{ paddingLeft: (node.indent * 18) + 'px' }">
+                            <template v-if="node.tokens.mode === 'comment'">
+                              <span class="mono text-[13px] text-emerald-600 whitespace-pre-wrap">{{ node.tokens.comment }}</span>
+                            </template>
+
+                            <template v-else-if="node.tokens.mode === 'pair'">
+                              <span v-if="node.tokens.prefix" class="mono text-[13px] text-slate-400 whitespace-pre-wrap">{{ node.tokens.prefix }}</span>
+                              <span class="mono text-[13px] font-medium text-amber-600 whitespace-pre-wrap">{{ node.tokens.key }}</span>
+                              <span class="mono text-[13px] text-slate-500 whitespace-pre-wrap">:</span>
+                              <span v-if="node.tokens.value" class="mono text-[13px] text-slate-700 whitespace-pre-wrap">{{ node.tokens.value }}</span>
+                              <span v-if="node.comment" class="text-[12px] leading-6 text-emerald-600 whitespace-pre-wrap"># {{ node.comment }}</span>
+                            </template>
+
+                            <template v-else>
+                              <span v-if="node.tokens.prefix" class="mono text-[13px] text-slate-400 whitespace-pre-wrap">{{ node.tokens.prefix }}</span>
+                              <span class="mono text-[13px] text-slate-700 whitespace-pre-wrap">{{ node.tokens.text }}</span>
+                              <span v-if="node.comment" class="text-[12px] leading-6 text-emerald-600 whitespace-pre-wrap"># {{ node.comment }}</span>
+                            </template>
+
+                            <span v-if="node.isCollapsed && node.hiddenCount" class="rounded-full bg-slate-200/90 px-2 py-0.5 text-[10px] text-slate-600 mono">
+                              {{ node.hiddenCount }} hidden
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-3xl bg-white border border-slate-200 shadow-panel">
+              <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3">
+                <div>
+                  <h3 class="text-base font-semibold text-slate-800">生产重点字段</h3>
+                  <p class="mt-1 text-sm text-slate-500">保留原有生产级词典结构，适合快速切到最常调优的配置项。</p>
+                </div>
+                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">{{ activeFields.length }} 项</span>
+              </div>
+
+              <div class="p-4 grid gap-3 md:grid-cols-2">
+                <button
+                  v-for="field in activeFields"
+                  :key="activeResource + '-field-' + field.path"
+                  type="button"
+                  class="rounded-2xl border px-4 py-3 text-left transition-all"
+                  :class="isSelectedPath(field.path) ? 'border-k8s bg-blue-50' : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'"
+                  @click="openFieldPath(activeResource, field.path)"
+                >
+                  <div class="flex items-center justify-between gap-3">
+                    <code class="text-[12px] break-all text-slate-800 mono">{{ field.path }}</code>
+                    <span class="rounded-md bg-emerald-50 px-2 py-1 text-[10px] text-emerald-600">{{ field.type }}</span>
+                  </div>
+                  <p class="mt-2 text-xs leading-5 text-slate-500 line-clamp-2">{{ field.description }}</p>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div v-if="drawerOpen && !isDesktop" class="absolute inset-0 bg-slate-900/30 z-20" @click="closeDrawer"></div>
+
+        <aside
+          class="absolute top-0 right-0 bottom-0 z-30 bg-white border-l border-slate-200 shadow-drawer transition-transform duration-300"
+          :class="drawerOpen ? 'translate-x-0' : 'translate-x-full'"
+          :style="drawerStyle"
+        >
+          <div v-if="isDesktop" class="drawer-resize-handle" @pointerdown.prevent="startDrawerResize"></div>
+
+          <div class="h-full flex flex-col">
+            <div class="px-5 py-4 border-b border-slate-200 bg-white/95 backdrop-blur sticky top-0 z-10">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Field Drawer</p>
+                  <h3 class="mt-1 text-lg font-semibold text-slate-900">参数解释抽屉</h3>
+                  <p class="mt-1 text-sm text-slate-500">拖拽左边缘可动态拉宽，适合查看长路径、长说明和完整 YAML Demo。</p>
+                </div>
+                <button type="button" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100" @click="closeDrawer">
+                  收起
+                </button>
+              </div>
+            </div>
+
+            <div v-if="selectedRecord" class="flex-1 overflow-y-auto p-5 space-y-5">
+              <div class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="rounded-lg bg-slate-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-100">{{ activeResource }}</span>
+                    <span class="rounded-lg px-2.5 py-1 text-[10px]" :class="selectedRecord.source === 'dict' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-200 text-slate-600'">
+                      {{ selectedRecord.source === 'dict' ? '生产字段' : '骨架字段' }}
+                    </span>
+                  </div>
+                  <button v-if="selectedExplainCommand" type="button" class="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100" @click="copyText(selectedExplainCommand, 'kubectl explain 命令已复制')">
+                    复制 explain 命令
+                  </button>
+                </div>
+
+                <code class="mt-4 block text-sm leading-6 break-all text-slate-900 mono">{{ selectedRecord.path }}</code>
+
+                <div class="mt-3 flex items-center gap-2 flex-wrap">
+                  <span class="rounded-full bg-blue-50 px-3 py-1 text-[11px] text-blue-700">{{ selectedRecord.type || 'Field' }}</span>
+                  <span
+                    v-for="(segment, idx) in selectedRecordSegments"
+                    :key="selectedRecord.path + '-segment-' + idx"
+                    class="rounded-md bg-white px-2 py-1 text-[10px] text-slate-500 mono border border-slate-200"
+                  >
+                    {{ segment }}
+                  </span>
+                </div>
+
+                <p class="mt-4 text-sm leading-7 text-slate-600">{{ selectedRecord.description || selectedRecord.comment || '该字段用于当前资源的 YAML 结构组织。' }}</p>
+              </div>
+
+              <div v-if="selectedRecord.demo" class="rounded-3xl overflow-hidden border border-slate-200 bg-white shadow-sm">
+                <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-3 bg-slate-50">
+                  <div>
+                    <p class="text-[10px] uppercase tracking-[0.18em] text-slate-400 mono">yaml demo</p>
+                    <p class="mt-1 text-xs text-slate-500">生产级示例，可直接复制后按资源名称与命名空间调整</p>
+                  </div>
+                  <button type="button" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100" @click="copyText(selectedRecord.demo, 'YAML Demo 已复制')">
+                    复制
+                  </button>
+                </div>
+                <pre class="!m-0 overflow-x-auto text-[13px] leading-6"><code ref="demoCodeEl" class="language-yaml">{{ selectedRecord.demo }}</code></pre>
+              </div>
+
+              <div v-else class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-5 py-6">
+                <p class="text-sm font-medium text-slate-700">当前字段暂无生产级 YAML Demo</p>
+                <p class="mt-2 text-sm leading-6 text-slate-500">这说明它目前只定义在骨架层。若要后续补充示例，只需要在 <code class="mono">k8s-dict.json</code> 中为该路径新增一条记录即可。</p>
+              </div>
+
+              <div v-if="activeFields.length" class="rounded-3xl border border-slate-200 bg-white p-5">
+                <div>
+                  <h4 class="text-sm font-semibold text-slate-900">同资源重点字段</h4>
+                  <p class="mt-1 text-xs leading-5 text-slate-500">继续点击这些字段，可快速切换当前资源下的其它高频配置项。</p>
+                </div>
+                <div class="mt-4 grid gap-2">
+                  <button
+                    v-for="field in activeFields.slice(0, 8)"
+                    :key="activeResource + '-drawer-' + field.path"
+                    type="button"
+                    class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-left hover:border-slate-300 hover:bg-white"
+                    @click="openFieldPath(activeResource, field.path)"
+                  >
+                    <div class="flex items-center justify-between gap-3">
+                      <code class="text-[12px] break-all text-slate-800 mono">{{ field.path }}</code>
+                      <span class="rounded-md bg-emerald-50 px-2 py-1 text-[10px] text-emerald-600">{{ field.type }}</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="flex-1 overflow-y-auto p-6">
+              <div class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center">
+                <div class="mx-auto w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                    <path d="M12 6v12m6-6H6"></path>
+                  </svg>
+                </div>
+                <h4 class="mt-4 text-base font-semibold text-slate-800">等待选择字段</h4>
+                <p class="mt-2 text-sm leading-6 text-slate-500">从中间 YAML 骨架中点击一个字段，例如 <code class="mono text-xs">resources</code>、<code class="mono text-xs">readinessProbe</code> 或 <code class="mono text-xs">sessionAffinity</code>，抽屉里就会展示详细解释。</p>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <button
+          v-if="!drawerOpen"
+          type="button"
+          class="absolute right-6 bottom-6 z-20 rounded-2xl bg-k8s px-4 py-3 text-sm font-medium text-white shadow-xl hover:bg-k8sDark"
+          @click="drawerOpen = true"
+        >
+          打开字段抽屉
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <transition name="fade">
+    <div v-if="toastVisible" class="fixed bottom-6 right-6 z-50 toast-anim">
+      <div class="rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white shadow-2xl flex items-center gap-2">
+        <svg class="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M4.5 12.75l6 6 9-13.5"></path>
+        </svg>
+        {{ toastMessage }}
+      </div>
+    </div>
+  </transition>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, onBeforeUnmount, nextTick, watch } = Vue;
+
+createApp({
+  setup() {
+    const schemaStore = ref({ defaultResource: 'Deployment', resourceOrder: [], resources: {} });
+    const k8sDict = ref({});
+    const activeResource = ref('');
+    const searchQuery = ref('');
+    const selectedRecord = ref(null);
+    const loading = ref(true);
+    const loadError = ref('');
+    const toastVisible = ref(false);
+    const toastMessage = ref('已复制到剪贴板');
+    const drawerOpen = ref(false);
+    const sidebarCollapsed = ref(false);
+    const sidebarMobileOpen = ref(false);
+    const drawerWidth = ref(560);
+    const viewportWidth = ref(window.innerWidth);
+    const demoCodeEl = ref(null);
+    const blueprintCollapseState = ref({});
+    let toastTimer = null;
+
+    function clampDrawerWidth(width) {
+      const min = viewportWidth.value >= 1280 ? 420 : 320;
+      const max = Math.max(min, Math.min(860, viewportWidth.value - 96));
+      return Math.min(Math.max(width, min), max);
+    }
+
+    const isDesktop = computed(() => viewportWidth.value >= 1280);
+    const isSidebarDesktop = computed(() => viewportWidth.value >= 1024);
+    const isSidebarCompact = computed(() => isSidebarDesktop.value && sidebarCollapsed.value);
+
+    const resourceList = computed(() => {
+      return (schemaStore.value.resourceOrder || []).map((key) => ({
+        key,
+        ...(schemaStore.value.resources[key] || {})
+      }));
+    });
+
+    const activeResourceMeta = computed(() => {
+      return schemaStore.value.resources[activeResource.value] || { summary: '', schema: [] };
+    });
+
+    function normalizePath(path) {
+      return (path || '')
+        .toLowerCase()
+        .replace(/\[\]/g, '')
+        .replace(/\s+/g, '')
+        .replace(/\/+/g, '/');
+    }
+
+    function normalizeExplainPath(path) {
+      return (path || '')
+        .replace(/\[\]/g, '')
+        .replace(/\s*\/\s*/g, '')
+        .replace(/\s+/g, '')
+        .replace(/\.{2,}/g, '.')
+        .replace(/^\./, '')
+        .replace(/\.$/, '');
+    }
+
+    function tokenizeYamlLine(display) {
+      const raw = (display || '').trim();
+      if (!raw) return { mode: 'empty', text: '' };
+      if (raw.startsWith('#')) return { mode: 'comment', comment: raw };
+
+      let body = raw;
+      let prefix = '';
+      if (body.startsWith('- ')) {
+        prefix = '- ';
+        body = body.slice(2);
+      }
+
+      const colonIndex = body.indexOf(':');
+      if (colonIndex === -1) {
+        return { mode: 'plain', prefix, text: body };
+      }
+
+      return {
+        mode: 'pair',
+        prefix,
+        key: body.slice(0, colonIndex),
+        value: body.slice(colonIndex + 1)
+      };
+    }
+
+    function getBlueprintNodeKey(resource, node, index) {
+      return `${resource}::${index}::${node.path || node.display || 'line'}`;
+    }
+
+    function countHiddenChildren(schema, index) {
+      const current = schema[index];
+      let count = 0;
+      for (let i = index + 1; i < schema.length; i += 1) {
+        if (schema[i].indent <= current.indent) break;
+        count += 1;
+      }
+      return count;
+    }
+
+    const activeBlueprint = computed(() => {
+      const rawSchema = activeResourceMeta.value.schema || [];
+      const collapseState = blueprintCollapseState.value[activeResource.value] || {};
+
+      return rawSchema.map((node, index) => {
+        const nextNode = rawSchema[index + 1];
+        const isCollapsible = Boolean(nextNode && nextNode.indent > node.indent);
+        const nodeKey = getBlueprintNodeKey(activeResource.value, node, index);
+
+        return {
+          ...node,
+          tokens: tokenizeYamlLine(node.display),
+          normalizedPath: normalizePath(node.path),
+          lineNumber: index + 1,
+          nodeKey,
+          isCollapsible,
+          isCollapsed: isCollapsible ? Boolean(collapseState[nodeKey]) : false,
+          hiddenCount: isCollapsible ? countHiddenChildren(rawSchema, index) : 0
+        };
+      });
+    });
+
+    const visibleBlueprint = computed(() => {
+      const visible = [];
+      const collapsedIndents = [];
+
+      activeBlueprint.value.forEach((node) => {
+        while (collapsedIndents.length && node.indent <= collapsedIndents[collapsedIndents.length - 1]) {
+          collapsedIndents.pop();
+        }
+
+        const hiddenByAncestor = collapsedIndents.length > 0;
+        if (!hiddenByAncestor) visible.push(node);
+        if (!hiddenByAncestor && node.isCollapsible && node.isCollapsed) {
+          collapsedIndents.push(node.indent);
+        }
+      });
+
+      return visible;
+    });
+
+    const activeFields = computed(() => {
+      return k8sDict.value[activeResource.value] || [];
+    });
+
+    const selectedRecordSegments = computed(() => {
+      if (!selectedRecord.value?.path) return [];
+      return selectedRecord.value.path.split('.').filter(Boolean);
+    });
+
+    function makeDictRecord(resource, field) {
+      return {
+        resource,
+        path: field.path,
+        type: field.type,
+        description: field.description,
+        demo: field.demo,
+        comment: '',
+        source: 'dict',
+        normalizedPath: normalizePath(field.path)
+      };
+    }
+
+    function makeSchemaRecord(resource, node) {
+      return {
+        resource,
+        path: node.path,
+        type: node.type || 'Field',
+        description: node.description || node.comment || '',
+        demo: node.demo || '',
+        comment: node.comment || '',
+        source: 'schema',
+        normalizedPath: normalizePath(node.path)
+      };
+    }
+
+    function getResourceFieldCount(resource) {
+      return (k8sDict.value[resource] || []).length;
+    }
+
+    function findSchemaNode(resource, path) {
+      const normalized = normalizePath(path);
+      return (schemaStore.value.resources[resource]?.schema || []).find((node) => normalizePath(node.path) === normalized) || null;
+    }
+
+    function findRecord(resource, path) {
+      if (!resource || !path) return null;
+      const normalized = normalizePath(path);
+      const dictField = (k8sDict.value[resource] || []).find((field) => normalizePath(field.path) === normalized);
+      if (dictField) return makeDictRecord(resource, dictField);
+      const schemaNode = findSchemaNode(resource, path);
+      if (schemaNode) return makeSchemaRecord(resource, schemaNode);
+      return null;
+    }
+
+    function defaultRecordForResource(resource) {
+      const firstDict = (k8sDict.value[resource] || [])[0];
+      if (firstDict) return makeDictRecord(resource, firstDict);
+      const firstSchema = (schemaStore.value.resources[resource]?.schema || []).find((node) => node.path);
+      return firstSchema ? makeSchemaRecord(resource, firstSchema) : null;
+    }
+
+    function showToast(message) {
+      toastMessage.value = message;
+      toastVisible.value = true;
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastVisible.value = false;
+      }, 1900);
+    }
+
+    function copyText(text, message = '已复制到剪贴板') {
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(message);
+      }).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast(message);
+      });
+    }
+
+    function ensureBlueprintCollapseState(resource = activeResource.value) {
+      if (!blueprintCollapseState.value[resource]) {
+        blueprintCollapseState.value[resource] = {};
+      }
+      return blueprintCollapseState.value[resource];
+    }
+
+    function expandBlueprintAncestors(resource, path) {
+      if (!resource || !path) return;
+
+      const rawSchema = schemaStore.value.resources[resource]?.schema || [];
+      if (!rawSchema.length) return;
+
+      const collapseState = ensureBlueprintCollapseState(resource);
+      const normalizedTarget = normalizePath(path);
+      const ancestorStack = [];
+
+      for (let index = 0; index < rawSchema.length; index += 1) {
+        const node = rawSchema[index];
+        const nextNode = rawSchema[index + 1];
+        const isCollapsible = Boolean(nextNode && nextNode.indent > node.indent);
+
+        while (ancestorStack.length && node.indent <= ancestorStack[ancestorStack.length - 1].indent) {
+          ancestorStack.pop();
+        }
+
+        const normalizedNodePath = normalizePath(node.path);
+        if (normalizedNodePath && (normalizedNodePath === normalizedTarget || normalizedTarget.startsWith(normalizedNodePath + '.'))) {
+          ancestorStack.forEach((ancestor) => {
+            delete collapseState[ancestor.key];
+          });
+
+          if (isCollapsible) {
+            delete collapseState[getBlueprintNodeKey(resource, node, index)];
+          }
+        }
+
+        if (isCollapsible) {
+          ancestorStack.push({
+            indent: node.indent,
+            key: getBlueprintNodeKey(resource, node, index)
+          });
+        }
+      }
+    }
+
+    function toggleBlueprintCollapse(node) {
+      if (!node?.isCollapsible) return;
+      const collapseState = ensureBlueprintCollapseState(activeResource.value);
+      collapseState[node.nodeKey] = !node.isCollapsed;
+    }
+
+    function collapseTopLevelBlueprint() {
+      const nextState = {};
+      activeBlueprint.value.forEach((node) => {
+        if (node.isCollapsible && node.indent === 0) {
+          nextState[node.nodeKey] = true;
+        }
+      });
+      blueprintCollapseState.value[activeResource.value] = nextState;
+    }
+
+    function expandAllBlueprint() {
+      blueprintCollapseState.value[activeResource.value] = {};
+    }
+
+    function toggleSidebar() {
+      sidebarCollapsed.value = !sidebarCollapsed.value;
+    }
+
+    function openMobileSidebar() {
+      if (isSidebarDesktop.value) return;
+      sidebarMobileOpen.value = true;
+    }
+
+    function closeMobileSidebar() {
+      sidebarMobileOpen.value = false;
+    }
+
+    function openRecord(record) {
+      if (!record) return;
+      activeResource.value = record.resource;
+      expandBlueprintAncestors(record.resource, record.path);
+      selectedRecord.value = record;
+      drawerOpen.value = true;
+    }
+
+    function openBlueprintNode(node) {
+      if (!node.path) return;
+      const record = findRecord(activeResource.value, node.path) || makeSchemaRecord(activeResource.value, node);
+      openRecord(record);
+    }
+
+    function openFieldPath(resource, path) {
+      const record = findRecord(resource, path);
+      if (record) openRecord(record);
+    }
+
+    function openSearchResult(record) {
+      openRecord(record);
+    }
+
+    function selectResource(resourceKey) {
+      activeResource.value = resourceKey;
+      searchQuery.value = '';
+      const nextRecord = defaultRecordForResource(resourceKey);
+      if (nextRecord) expandBlueprintAncestors(resourceKey, nextRecord.path);
+      selectedRecord.value = nextRecord;
+      if (!isSidebarDesktop.value) sidebarMobileOpen.value = false;
+      if (isDesktop.value) drawerOpen.value = true;
+    }
+
+    function clearSearch() {
+      searchQuery.value = '';
+    }
+
+    function closeDrawer() {
+      drawerOpen.value = false;
+    }
+
+    const allRecords = computed(() => {
+      const records = [];
+
+      resourceList.value.forEach((resource) => {
+        const seen = new Set();
+        (k8sDict.value[resource.key] || []).forEach((field) => {
+          const record = makeDictRecord(resource.key, field);
+          seen.add(record.normalizedPath);
+          records.push(record);
+        });
+
+        (schemaStore.value.resources[resource.key]?.schema || []).forEach((node) => {
+          const normalized = normalizePath(node.path);
+          if (!node.path || !normalized || seen.has(normalized)) return;
+          records.push(makeSchemaRecord(resource.key, node));
+        });
+      });
+
+      return records;
+    });
+
+    function parseExplainQuery(query) {
+      const raw = query.trim();
+      if (!raw) {
+        return { isExplain: false, resource: '', path: '', command: '' };
+      }
+
+      const hasKubectlPrefix = /^kubectl\s+explain\s+/i.test(raw);
+      let body = raw.replace(/^kubectl\s+explain\s+/i, '').trim();
+      body = body.replace(/\s+--recursive\b/ig, '').trim();
+      body = body.replace(/\s*\.\s*/g, '.');
+
+      const lowerBody = body.toLowerCase();
+      const matchedResource = resourceList.value.find((item) => {
+        const name = item.key.toLowerCase();
+        return lowerBody === name || lowerBody.startsWith(name + '.') || lowerBody.startsWith(name + ' ');
+      });
+
+      if (!matchedResource) {
+        return { isExplain: hasKubectlPrefix, resource: '', path: '', command: raw };
+      }
+
+      const path = body.slice(matchedResource.key.length).replace(/^[.\s]+/, '').trim();
+      return {
+        isExplain: hasKubectlPrefix || Boolean(path),
+        resource: matchedResource.key,
+        path,
+        command: `kubectl explain ${matchedResource.key.toLowerCase()}${path ? '.' + normalizeExplainPath(path) : ''}`
+      };
+    }
+
+    const explainState = computed(() => parseExplainQuery(searchQuery.value));
+    const isExplainMode = computed(() => explainState.value.isExplain);
+
+    const searchResults = computed(() => {
+      const rawQuery = searchQuery.value.trim();
+      if (!rawQuery) return [];
+
+      const explain = explainState.value;
+      const fuzzyQuery = rawQuery.toLowerCase();
+      const normalizedQuery = normalizePath(rawQuery);
+
+      return allRecords.value
+        .map((record) => {
+          if (explain.isExplain && explain.resource && record.resource !== explain.resource) {
+            return null;
+          }
+
+          const pathLower = record.path.toLowerCase();
+          const descriptionLower = (record.description || '').toLowerCase();
+          const typeLower = (record.type || '').toLowerCase();
+          const commentLower = (record.comment || '').toLowerCase();
+          const resourceLower = record.resource.toLowerCase();
+          let score = 0;
+
+          if (explain.isExplain) {
+            if (!explain.resource) return null;
+            if (!explain.path) {
+              score = 100;
+            } else {
+              const explainPath = normalizePath(explain.path);
+              if (record.normalizedPath === explainPath) {
+                score = 1000;
+              } else if (record.normalizedPath.startsWith(explainPath + '.')) {
+                score = 900 - Math.min(record.normalizedPath.split('.').length, 50);
+              } else if (explainPath.startsWith(record.normalizedPath + '.')) {
+                score = 820 - Math.min(explainPath.split('.').length, 50);
+              } else if (record.normalizedPath.includes(explainPath)) {
+                score = 700;
+              } else if (descriptionLower.includes(explainPath) || commentLower.includes(explainPath)) {
+                score = 220;
+              }
+            }
+          } else {
+            if (pathLower === fuzzyQuery || record.normalizedPath === normalizedQuery) score += 420;
+            if (pathLower.includes(fuzzyQuery)) score += 180;
+            if (record.normalizedPath.includes(normalizedQuery)) score += 150;
+            if (descriptionLower.includes(fuzzyQuery)) score += 90;
+            if (commentLower.includes(fuzzyQuery)) score += 60;
+            if (typeLower.includes(fuzzyQuery)) score += 40;
+            if (resourceLower.includes(fuzzyQuery)) score += 30;
+          }
+
+          return score > 0 ? { ...record, score } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          if (a.source !== b.source) return a.source === 'dict' ? -1 : 1;
+          if (a.resource !== b.resource) return a.resource.localeCompare(b.resource);
+          return a.path.localeCompare(b.path);
+        });
+    });
+
+    const visibleSearchResults = computed(() => searchResults.value.slice(0, 12));
+
+    const activeBlueprintText = computed(() => {
+      return activeBlueprint.value
+        .map((node) => `${'  '.repeat(node.indent)}${node.display}${node.comment ? `  # ${node.comment}` : ''}`)
+        .join('\n');
+    });
+
+    const selectedExplainCommand = computed(() => {
+      if (!selectedRecord.value?.path) return '';
+      if (selectedRecord.value.path.includes('/') || selectedRecord.value.path.includes(' ')) return '';
+      const explainPath = normalizeExplainPath(selectedRecord.value.path);
+      if (!explainPath) return '';
+      return `kubectl explain ${selectedRecord.value.resource.toLowerCase()}.${explainPath}`;
+    });
+
+    function isSelectedPath(path) {
+      if (!selectedRecord.value?.path || !path) return false;
+      return normalizePath(selectedRecord.value.path) === normalizePath(path);
+    }
+
+    function isSelectedRecord(record) {
+      if (!record || !selectedRecord.value) return false;
+      return record.resource === selectedRecord.value.resource && isSelectedPath(record.path);
+    }
+
+    function schemaLineClass(node) {
+      const classes = [];
+      if (node?.isCollapsed) classes.push('folded');
+      if (!selectedRecord.value?.path || !node.path) return classes.join(' ');
+      const current = normalizePath(selectedRecord.value.path);
+      const target = normalizePath(node.path);
+      if (!current || !target) return classes.join(' ');
+      if (current === target) classes.push('active');
+      else if (current.startsWith(target + '.') || target.startsWith(current + '.')) classes.push('related');
+      return classes.join(' ');
+    }
+
+    const sidebarStyle = computed(() => {
+      const width = isSidebarDesktop.value
+        ? (isSidebarCompact.value ? 88 : 270)
+        : Math.round(Math.min(340, Math.max(240, viewportWidth.value * 0.86)));
+
+      return {
+        width: `${width}px`,
+        minWidth: `${width}px`,
+        maxWidth: `${width}px`
+      };
+    });
+
+    const drawerStyle = computed(() => {
+      return {
+        width: isDesktop.value ? `${drawerWidth.value}px` : '100vw',
+        maxWidth: isDesktop.value ? `${drawerWidth.value}px` : '100vw'
+      };
+    });
+
+    const mainPaneStyle = computed(() => {
+      if (!isDesktop.value || !drawerOpen.value) return {};
+      return { paddingRight: `${drawerWidth.value}px` };
+    });
+
+    function startDrawerResize(event) {
+      if (!isDesktop.value) return;
+      const startX = event.clientX;
+      const startWidth = drawerWidth.value;
+      document.body.style.userSelect = 'none';
+
+      const handleMove = (moveEvent) => {
+        drawerWidth.value = clampDrawerWidth(startWidth + (startX - moveEvent.clientX));
+      };
+
+      const handleUp = () => {
+        document.body.style.userSelect = '';
+        window.removeEventListener('pointermove', handleMove);
+        window.removeEventListener('pointerup', handleUp);
+      };
+
+      window.addEventListener('pointermove', handleMove);
+      window.addEventListener('pointerup', handleUp);
+    }
+
+    function updateViewport() {
+      viewportWidth.value = window.innerWidth;
+      drawerWidth.value = clampDrawerWidth(drawerWidth.value);
+      if (isSidebarDesktop.value) {
+        sidebarMobileOpen.value = false;
+      }
+    }
+
+    function highlightDemo() {
+      if (!demoCodeEl.value || !selectedRecord.value?.demo || !drawerOpen.value) return;
+      demoCodeEl.value.textContent = selectedRecord.value.demo;
+      demoCodeEl.value.removeAttribute('data-highlighted');
+      hljs.highlightElement(demoCodeEl.value);
+    }
+
+    function handleKeydown(event) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        document.querySelector('input[type="text"]')?.focus();
+      }
+      if (event.key === 'Escape' && sidebarMobileOpen.value) {
+        sidebarMobileOpen.value = false;
+      }
+      if (event.key === 'Escape' && drawerOpen.value) {
+        drawerOpen.value = false;
+      }
+    }
+
+    watch(
+      () => [selectedRecord.value?.demo, drawerOpen.value],
+      () => nextTick(highlightDemo)
+    );
+
+    watch(searchResults, (results) => {
+      if (!searchQuery.value.trim()) return;
+      if (!isExplainMode.value) return;
+      if (!results.length) return;
+      const first = results[0];
+      if (!selectedRecord.value || normalizePath(selectedRecord.value.path) !== normalizePath(first.path) || selectedRecord.value.resource !== first.resource) {
+        openRecord(first);
+      }
+    });
+
+    async function loadData() {
+      loading.value = true;
+      loadError.value = '';
+
+      try {
+        const [dictResp, schemaResp] = await Promise.all([
+          fetch('./k8s-dict.json'),
+          fetch('./k8s-schema.json')
+        ]);
+
+        if (!dictResp.ok) throw new Error(`k8s-dict.json HTTP ${dictResp.status}: ${dictResp.statusText}`);
+        if (!schemaResp.ok) throw new Error(`k8s-schema.json HTTP ${schemaResp.status}: ${schemaResp.statusText}`);
+
+        const [dictData, schemaData] = await Promise.all([
+          dictResp.json(),
+          schemaResp.json()
+        ]);
+
+        k8sDict.value = dictData;
+        schemaStore.value = schemaData;
+        activeResource.value = schemaData.defaultResource || schemaData.resourceOrder?.[0] || 'Deployment';
+        selectedRecord.value = defaultRecordForResource(activeResource.value);
+        if (selectedRecord.value) expandBlueprintAncestors(activeResource.value, selectedRecord.value.path);
+        drawerOpen.value = isDesktop.value;
+        drawerWidth.value = clampDrawerWidth(drawerWidth.value);
+        loading.value = false;
+      } catch (error) {
+        loading.value = false;
+        loadError.value = `无法加载数据文件：${error.message}。请确认 index.html、k8s-dict.json、k8s-schema.json 位于同一目录。若浏览器直接以 file:// 打开页面，请使用本地静态服务器访问当前目录。`;
+      }
+    }
+
+    onMounted(() => {
+      updateViewport();
+      loadData();
+      document.addEventListener('keydown', handleKeydown);
+      window.addEventListener('resize', updateViewport);
+    });
+
+    onBeforeUnmount(() => {
+      document.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('resize', updateViewport);
+    });
+
+    return {
+      activeBlueprint,
+      activeBlueprintText,
+      activeFields,
+      activeResource,
+      activeResourceMeta,
+      collapseTopLevelBlueprint,
+      clearSearch,
+      closeMobileSidebar,
+      closeDrawer,
+      copyText,
+      demoCodeEl,
+      drawerOpen,
+      drawerStyle,
+      expandAllBlueprint,
+      explainState,
+      getResourceFieldCount,
+      isDesktop,
+      isSidebarCompact,
+      isSidebarDesktop,
+      isExplainMode,
+      isSelectedPath,
+      isSelectedRecord,
+      loadData,
+      loadError,
+      loading,
+      mainPaneStyle,
+      openMobileSidebar,
+      openBlueprintNode,
+      openFieldPath,
+      openSearchResult,
+      resourceList,
+      schemaLineClass,
+      searchQuery,
+      searchResults,
+      selectResource,
+      selectedExplainCommand,
+      selectedRecord,
+      selectedRecordSegments,
+      sidebarCollapsed,
+      sidebarMobileOpen,
+      sidebarStyle,
+      startDrawerResize,
+      toastMessage,
+      toastVisible,
+      toggleBlueprintCollapse,
+      toggleSidebar,
+      visibleBlueprint,
+      visibleSearchResults
+    };
+  }
+}).mount('#app');
+</script>
+
+</body>
+</html>

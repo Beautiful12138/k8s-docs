@@ -1,0 +1,2418 @@
+{
+  "defaultResource": "Deployment",
+  "resourceOrder": [
+    "Deployment",
+    "Service",
+    "Ingress",
+    "ConfigMap",
+    "Secret",
+    "PVC",
+    "StatefulSet"
+  ],
+  "resources": {
+    "Deployment": {
+      "icon": "D",
+      "subtitle": "无状态应用部署控制器",
+      "focus": "副本、滚动更新、探针、资源、调度",
+      "summary": "Deployment 适合大多数无状态微服务。除了副本、资源和探针，生产环境还要补齐 serviceAccount、调度约束、安全上下文、配置挂载与发布超时控制。",
+      "schema": [
+        {
+          "display": "apiVersion: apps/v1",
+          "path": "apiVersion",
+          "indent": 0,
+          "comment": "必选，Deployment API 版本",
+          "type": "string",
+          "description": "生产环境统一使用 apps/v1 这一稳定版本，避免废弃 API 带来升级风险。"
+        },
+        {
+          "display": "kind: Deployment",
+          "path": "kind",
+          "indent": 0,
+          "comment": "必选，资源类型",
+          "type": "string",
+          "description": "声明当前对象为 Deployment。"
+        },
+        {
+          "display": "metadata:",
+          "path": "metadata",
+          "indent": 0,
+          "comment": "必选，元数据",
+          "type": "Object"
+        },
+        {
+          "display": "name: string",
+          "path": "metadata.name",
+          "indent": 1,
+          "comment": "Deployment 名称",
+          "type": "string"
+        },
+        {
+          "display": "namespace: string",
+          "path": "metadata.namespace",
+          "indent": 1,
+          "comment": "命名空间",
+          "type": "string"
+        },
+        {
+          "display": "labels:",
+          "path": "metadata.labels",
+          "indent": 1,
+          "comment": "建议统一使用 app.kubernetes.io/* 标签",
+          "type": "map[string]string",
+          "description": "统一标签能支撑流量选择、监控抓取、灰度发布与审计检索。"
+        },
+        {
+          "display": "annotations:",
+          "path": "metadata.annotations",
+          "indent": 1,
+          "comment": "变更原因、配置校验和等扩展信息",
+          "type": "map[string]string",
+          "description": "常用于记录变更原因、触发配置变更滚动发布、或对接发布系统。"
+        },
+        {
+          "display": "spec:",
+          "path": "spec",
+          "indent": 0,
+          "comment": "Deployment 核心定义",
+          "type": "Object"
+        },
+        {
+          "display": "replicas: 3",
+          "path": "spec.replicas",
+          "indent": 1,
+          "comment": "生产至少 2 到 3 个副本",
+          "type": "integer"
+        },
+        {
+          "display": "minReadySeconds: 30",
+          "path": "spec.minReadySeconds",
+          "indent": 1,
+          "comment": "新 Pod 至少 Ready 持续的时间",
+          "type": "integer",
+          "description": "防止刚 Ready 的 Pod 立即被视为稳定副本，适合启动后还需要缓冲预热的服务。"
+        },
+        {
+          "display": "revisionHistoryLimit: 10",
+          "path": "spec.revisionHistoryLimit",
+          "indent": 1,
+          "comment": "保留历史版本数",
+          "type": "integer",
+          "description": "用于回滚时保留足够副本集历史，但也要避免无限增长。"
+        },
+        {
+          "display": "progressDeadlineSeconds: 600",
+          "path": "spec.progressDeadlineSeconds",
+          "indent": 1,
+          "comment": "滚动发布超时时间",
+          "type": "integer",
+          "description": "若发布迟迟不能推进，控制器会判定 Deployment 进入失败状态。"
+        },
+        {
+          "display": "strategy:",
+          "path": "spec.strategy",
+          "indent": 1,
+          "comment": "滚动更新策略",
+          "type": "Object"
+        },
+        {
+          "display": "type: RollingUpdate",
+          "path": "spec.strategy",
+          "indent": 2,
+          "comment": "生产推荐滚动发布",
+          "type": "string"
+        },
+        {
+          "display": "rollingUpdate:",
+          "path": "spec.strategy",
+          "indent": 2,
+          "comment": "平滑升级参数",
+          "type": "Object"
+        },
+        {
+          "display": "maxSurge: 25%",
+          "path": "spec.strategy",
+          "indent": 3,
+          "comment": "升级期间额外拉起的新 Pod 数",
+          "type": "string"
+        },
+        {
+          "display": "maxUnavailable: 0",
+          "path": "spec.strategy",
+          "indent": 3,
+          "comment": "升级期间不可用副本数",
+          "type": "string"
+        },
+        {
+          "display": "selector:",
+          "path": "spec.selector",
+          "indent": 1,
+          "comment": "必须与 template.labels 精确匹配",
+          "type": "Object"
+        },
+        {
+          "display": "matchLabels:",
+          "path": "spec.selector.matchLabels",
+          "indent": 2,
+          "comment": "稳定标签选择器",
+          "type": "map[string]string"
+        },
+        {
+          "display": "template:",
+          "path": "spec.template",
+          "indent": 1,
+          "comment": "Pod 模板",
+          "type": "Object"
+        },
+        {
+          "display": "metadata:",
+          "path": "spec.template.metadata",
+          "indent": 2,
+          "comment": "Pod 元数据",
+          "type": "Object"
+        },
+        {
+          "display": "labels:",
+          "path": "spec.template.metadata.labels",
+          "indent": 3,
+          "comment": "需与 selector.matchLabels 对齐",
+          "type": "map[string]string"
+        },
+        {
+          "display": "annotations:",
+          "path": "spec.template.metadata.annotations",
+          "indent": 3,
+          "comment": "Prometheus、配置 checksum、sidecar 注入等",
+          "type": "map[string]string",
+          "description": "Pod 级 annotations 常用于抓取监控、记录配置版本、或控制 service mesh 行为。"
+        },
+        {
+          "display": "spec:",
+          "path": "spec.template.spec",
+          "indent": 2,
+          "comment": "Pod 级配置",
+          "type": "Object"
+        },
+        {
+          "display": "serviceAccountName: string",
+          "path": "spec.template.spec.serviceAccountName",
+          "indent": 3,
+          "comment": "绑定最小权限服务账号",
+          "type": "string",
+          "description": "生产环境应避免默认 ServiceAccount，使用最小权限账号访问 K8s API 或云资源。"
+        },
+        {
+          "display": "imagePullSecrets:",
+          "path": "spec.template.spec.imagePullSecrets",
+          "indent": 3,
+          "comment": "私有镜像仓库凭据",
+          "type": "[]LocalObjectReference"
+        },
+        {
+          "display": "- name: string",
+          "path": "spec.template.spec.imagePullSecrets",
+          "indent": 4,
+          "comment": "例如 regcred-prod",
+          "type": "string"
+        },
+        {
+          "display": "nodeSelector:",
+          "path": "spec.template.spec.nodeSelector",
+          "indent": 3,
+          "comment": "简单的节点标签约束",
+          "type": "map[string]string",
+          "description": "适合把应用固定到指定节点池，例如 application、x86、arm64。"
+        },
+        {
+          "display": "tolerations:",
+          "path": "spec.template.spec.tolerations",
+          "indent": 3,
+          "comment": "容忍被 taint 的节点",
+          "type": "[]Object",
+          "description": "常用于与 dedicated 节点池配合，确保应用能调度到带污点的专用节点。"
+        },
+        {
+          "display": "affinity:",
+          "path": "spec.template.spec.affinity",
+          "indent": 3,
+          "comment": "调度亲和性与反亲和性",
+          "type": "Object"
+        },
+        {
+          "display": "nodeAffinity:",
+          "path": "spec.template.spec.affinity.nodeAffinity",
+          "indent": 4,
+          "comment": "节点池或可用区约束",
+          "type": "Object"
+        },
+        {
+          "display": "podAntiAffinity:",
+          "path": "spec.template.spec.affinity.podAntiAffinity",
+          "indent": 4,
+          "comment": "避免副本扎堆",
+          "type": "Object"
+        },
+        {
+          "display": "topologySpreadConstraints:",
+          "path": "spec.template.spec.topologySpreadConstraints",
+          "indent": 3,
+          "comment": "跨节点或跨 AZ 均衡打散",
+          "type": "[]Object"
+        },
+        {
+          "display": "securityContext:",
+          "path": "spec.template.spec.securityContext",
+          "indent": 3,
+          "comment": "Pod 级安全上下文",
+          "type": "Object",
+          "description": "用于统一约束 runAsUser、runAsGroup、fsGroup 等安全参数。"
+        },
+        {
+          "display": "runAsUser: 10001",
+          "path": "spec.template.spec.securityContext.runAsUser",
+          "indent": 4,
+          "comment": "Pod 内主进程运行用户 ID",
+          "type": "integer"
+        },
+        {
+          "display": "runAsGroup: 10001",
+          "path": "spec.template.spec.securityContext.runAsGroup",
+          "indent": 4,
+          "comment": "Pod 内主进程运行组 ID",
+          "type": "integer"
+        },
+        {
+          "display": "fsGroup: 10001",
+          "path": "spec.template.spec.securityContext.fsGroup",
+          "indent": 4,
+          "comment": "共享卷文件组权限",
+          "type": "integer",
+          "description": "适合需要多个进程共享卷读写权限的场景。"
+        },
+        {
+          "display": "terminationGracePeriodSeconds: 60",
+          "path": "spec.template.spec.terminationGracePeriodSeconds",
+          "indent": 3,
+          "comment": "优雅停机总窗口",
+          "type": "integer"
+        },
+        {
+          "display": "dnsPolicy: ClusterFirst",
+          "path": "spec.template.spec.dnsPolicy",
+          "indent": 3,
+          "comment": "DNS 策略",
+          "type": "string",
+          "description": "大多数普通 Pod 使用 ClusterFirst；hostNetwork 场景通常改为 ClusterFirstWithHostNet。"
+        },
+        {
+          "display": "hostNetwork: false",
+          "path": "spec.template.spec.hostNetwork",
+          "indent": 3,
+          "comment": "是否使用宿主机网络",
+          "type": "boolean",
+          "description": "除边缘代理、网络组件等少数场景外，业务微服务通常不启用 hostNetwork。"
+        },
+        {
+          "display": "priorityClassName: app-critical",
+          "path": "spec.template.spec.priorityClassName",
+          "indent": 3,
+          "comment": "调度优先级类",
+          "type": "string",
+          "description": "关键链路服务可以通过优先级类在资源紧张时获得更高调度优先级。"
+        },
+        {
+          "display": "restartPolicy: Always",
+          "path": "spec.template.spec.restartPolicy",
+          "indent": 3,
+          "comment": "Deployment Pod 固定为 Always",
+          "type": "string"
+        },
+        {
+          "display": "hostAliases:",
+          "path": "spec.template.spec.hostAliases",
+          "indent": 3,
+          "comment": "附加静态 hosts 解析",
+          "type": "[]Object",
+          "description": "仅在明确需要兼容遗留域名解析或特殊旁路系统时使用。"
+        },
+        {
+          "display": "dnsConfig:",
+          "path": "spec.template.spec.dnsConfig",
+          "indent": 3,
+          "comment": "自定义 DNS 解析参数",
+          "type": "Object",
+          "description": "适合追加 nameservers、searches 或 resolver options。"
+        },
+        {
+          "display": "containers:",
+          "path": "spec.template.spec.containers[]",
+          "indent": 3,
+          "comment": "容器列表",
+          "type": "[]Object"
+        },
+        {
+          "display": "- name: string",
+          "path": "spec.template.spec.containers[].name",
+          "indent": 4,
+          "comment": "容器名称",
+          "type": "string"
+        },
+        {
+          "display": "image: registry.example.com/app/service:tag",
+          "path": "spec.template.spec.containers[].image",
+          "indent": 4,
+          "comment": "固定版本镜像",
+          "type": "string"
+        },
+        {
+          "display": "imagePullPolicy: IfNotPresent",
+          "path": "spec.template.spec.containers[].imagePullPolicy",
+          "indent": 4,
+          "comment": "镜像拉取策略",
+          "type": "string"
+        },
+        {
+          "display": "command: [\"/bin/sh\", \"-c\"]",
+          "path": "spec.template.spec.containers[].command",
+          "indent": 4,
+          "comment": "覆盖镜像 ENTRYPOINT",
+          "type": "[]string",
+          "description": "仅在确实需要包装启动命令、注入前置逻辑时覆盖 command。"
+        },
+        {
+          "display": "args: [\"java -jar /app/app.jar\"]",
+          "path": "spec.template.spec.containers[].args",
+          "indent": 4,
+          "comment": "覆盖镜像 CMD",
+          "type": "[]string",
+          "description": "适合通过参数切换 profile、JVM 启动项或运行模式。"
+        },
+        {
+          "display": "workingDir: /app",
+          "path": "spec.template.spec.containers[].workingDir",
+          "indent": 4,
+          "comment": "容器工作目录",
+          "type": "string"
+        },
+        {
+          "display": "ports:",
+          "path": "spec.template.spec.containers[].ports[]",
+          "indent": 4,
+          "comment": "容器暴露端口",
+          "type": "[]Object"
+        },
+        {
+          "display": "- name: http",
+          "path": "spec.template.spec.containers[].ports[].name",
+          "indent": 5,
+          "comment": "建议使用语义化端口名",
+          "type": "string"
+        },
+        {
+          "display": "containerPort: 8080",
+          "path": "spec.template.spec.containers[].ports[].containerPort",
+          "indent": 5,
+          "comment": "应用监听端口",
+          "type": "integer"
+        },
+        {
+          "display": "protocol: TCP",
+          "path": "spec.template.spec.containers[].ports[].protocol",
+          "indent": 5,
+          "comment": "端口协议",
+          "type": "string"
+        },
+        {
+          "display": "env:",
+          "path": "spec.template.spec.containers[].env[]",
+          "indent": 4,
+          "comment": "显式环境变量",
+          "type": "[]EnvVar"
+        },
+        {
+          "display": "- name: POD_IP",
+          "path": "spec.template.spec.containers[].env[].name",
+          "indent": 5,
+          "comment": "环境变量名称",
+          "type": "string"
+        },
+        {
+          "display": "valueFrom:",
+          "path": "spec.template.spec.containers[].env[].valueFrom",
+          "indent": 5,
+          "comment": "从 fieldRef、configMapKeyRef、secretKeyRef 等读取值",
+          "type": "Object",
+          "description": "适合注入 Pod IP、命名空间、配置键值和敏感信息。"
+        },
+        {
+          "display": "fieldRef.fieldPath: status.podIP",
+          "path": "spec.template.spec.containers[].env[].valueFrom.fieldRef",
+          "indent": 6,
+          "comment": "从 Pod 字段读取值",
+          "type": "Object"
+        },
+        {
+          "display": "resourceFieldRef.resource: limits.memory",
+          "path": "spec.template.spec.containers[].env[].valueFrom.resourceFieldRef",
+          "indent": 6,
+          "comment": "从资源限制读取值",
+          "type": "Object"
+        },
+        {
+          "display": "configMapKeyRef.name: app-config",
+          "path": "spec.template.spec.containers[].env[].valueFrom.configMapKeyRef",
+          "indent": 6,
+          "comment": "引用 ConfigMap 单个键",
+          "type": "Object"
+        },
+        {
+          "display": "secretKeyRef.name: app-secret",
+          "path": "spec.template.spec.containers[].env[].valueFrom.secretKeyRef",
+          "indent": 6,
+          "comment": "引用 Secret 单个键",
+          "type": "Object"
+        },
+        {
+          "display": "envFrom:",
+          "path": "spec.template.spec.containers[].envFrom",
+          "indent": 4,
+          "comment": "批量注入 ConfigMap 或 Secret",
+          "type": "[]Object"
+        },
+        {
+          "display": "prefix: APP_",
+          "path": "spec.template.spec.containers[].envFrom[].prefix",
+          "indent": 5,
+          "comment": "为批量注入变量统一加前缀",
+          "type": "string"
+        },
+        {
+          "display": "resources:",
+          "path": "spec.template.spec.containers[].resources",
+          "indent": 4,
+          "comment": "资源请求与限制",
+          "type": "Object"
+        },
+        {
+          "display": "requests:",
+          "path": "spec.template.spec.containers[].resources.requests",
+          "indent": 5,
+          "comment": "调度时使用的资源请求",
+          "type": "Object"
+        },
+        {
+          "display": "limits:",
+          "path": "spec.template.spec.containers[].resources.limits",
+          "indent": 5,
+          "comment": "运行期硬限制",
+          "type": "Object"
+        },
+        {
+          "display": "volumeMounts:",
+          "path": "spec.template.spec.containers[].volumeMounts[]",
+          "indent": 4,
+          "comment": "挂载卷到容器内",
+          "type": "[]VolumeMount"
+        },
+        {
+          "display": "- name: app-config",
+          "path": "spec.template.spec.containers[].volumeMounts[].name",
+          "indent": 5,
+          "comment": "引用 volumes 中定义的卷名",
+          "type": "string"
+        },
+        {
+          "display": "mountPath: /app/config/application.yml",
+          "path": "spec.template.spec.containers[].volumeMounts[].mountPath",
+          "indent": 5,
+          "comment": "容器内挂载路径",
+          "type": "string"
+        },
+        {
+          "display": "subPath: application.yml",
+          "path": "spec.template.spec.containers[].volumeMounts[].subPath",
+          "indent": 5,
+          "comment": "只挂载卷中的单个文件",
+          "type": "string",
+          "description": "适合把 application.yml、logback.xml 等单文件精准挂入固定路径。"
+        },
+        {
+          "display": "readOnly: true",
+          "path": "spec.template.spec.containers[].volumeMounts[].readOnly",
+          "indent": 5,
+          "comment": "以只读方式挂载",
+          "type": "boolean"
+        },
+        {
+          "display": "lifecycle:",
+          "path": "spec.template.spec.containers[].lifecycle",
+          "indent": 4,
+          "comment": "生命周期钩子",
+          "type": "Object"
+        },
+        {
+          "display": "preStop:",
+          "path": "spec.template.spec.containers[].lifecycle.preStop",
+          "indent": 5,
+          "comment": "终止前延迟下线",
+          "type": "Object"
+        },
+        {
+          "display": "postStart:",
+          "path": "spec.template.spec.containers[].lifecycle.postStart",
+          "indent": 5,
+          "comment": "容器启动后执行初始化逻辑",
+          "type": "Object"
+        },
+        {
+          "display": "startupProbe:",
+          "path": "spec.template.spec.containers[].startupProbe",
+          "indent": 4,
+          "comment": "慢启动服务保护",
+          "type": "Object"
+        },
+        {
+          "display": "httpGet.path: /actuator/health/readiness",
+          "path": "spec.template.spec.containers[].startupProbe.httpGet.path",
+          "indent": 5,
+          "comment": "HTTP 探针路径",
+          "type": "string"
+        },
+        {
+          "display": "httpGet.port: http",
+          "path": "spec.template.spec.containers[].startupProbe.httpGet.port",
+          "indent": 5,
+          "comment": "HTTP 探针端口",
+          "type": "string"
+        },
+        {
+          "display": "failureThreshold: 30",
+          "path": "spec.template.spec.containers[].startupProbe.failureThreshold",
+          "indent": 5,
+          "comment": "允许的连续失败次数",
+          "type": "integer"
+        },
+        {
+          "display": "periodSeconds: 10",
+          "path": "spec.template.spec.containers[].startupProbe.periodSeconds",
+          "indent": 5,
+          "comment": "探测周期",
+          "type": "integer"
+        },
+        {
+          "display": "timeoutSeconds: 3",
+          "path": "spec.template.spec.containers[].startupProbe.timeoutSeconds",
+          "indent": 5,
+          "comment": "探测超时",
+          "type": "integer"
+        },
+        {
+          "display": "livenessProbe:",
+          "path": "spec.template.spec.containers[].livenessProbe",
+          "indent": 4,
+          "comment": "存活探针",
+          "type": "Object"
+        },
+        {
+          "display": "httpGet.path: /actuator/health/liveness",
+          "path": "spec.template.spec.containers[].livenessProbe.httpGet.path",
+          "indent": 5,
+          "comment": "HTTP 探针路径",
+          "type": "string"
+        },
+        {
+          "display": "httpGet.port: http",
+          "path": "spec.template.spec.containers[].livenessProbe.httpGet.port",
+          "indent": 5,
+          "comment": "HTTP 探针端口",
+          "type": "string"
+        },
+        {
+          "display": "tcpSocket.port: 8080",
+          "path": "spec.template.spec.containers[].livenessProbe.tcpSocket.port",
+          "indent": 5,
+          "comment": "TCP 探针端口",
+          "type": "integer"
+        },
+        {
+          "display": "grpc.port: 9090",
+          "path": "spec.template.spec.containers[].livenessProbe.grpc.port",
+          "indent": 5,
+          "comment": "gRPC 探针端口",
+          "type": "integer"
+        },
+        {
+          "display": "initialDelaySeconds: 30",
+          "path": "spec.template.spec.containers[].livenessProbe.initialDelaySeconds",
+          "indent": 5,
+          "comment": "首次探测延迟",
+          "type": "integer"
+        },
+        {
+          "display": "periodSeconds: 15",
+          "path": "spec.template.spec.containers[].livenessProbe.periodSeconds",
+          "indent": 5,
+          "comment": "探测周期",
+          "type": "integer"
+        },
+        {
+          "display": "timeoutSeconds: 3",
+          "path": "spec.template.spec.containers[].livenessProbe.timeoutSeconds",
+          "indent": 5,
+          "comment": "探测超时",
+          "type": "integer"
+        },
+        {
+          "display": "failureThreshold: 3",
+          "path": "spec.template.spec.containers[].livenessProbe.failureThreshold",
+          "indent": 5,
+          "comment": "连续失败阈值",
+          "type": "integer"
+        },
+        {
+          "display": "readinessProbe:",
+          "path": "spec.template.spec.containers[].readinessProbe",
+          "indent": 4,
+          "comment": "就绪探针",
+          "type": "Object"
+        },
+        {
+          "display": "httpGet.path: /actuator/health/readiness",
+          "path": "spec.template.spec.containers[].readinessProbe.httpGet.path",
+          "indent": 5,
+          "comment": "HTTP 探针路径",
+          "type": "string"
+        },
+        {
+          "display": "httpGet.port: http",
+          "path": "spec.template.spec.containers[].readinessProbe.httpGet.port",
+          "indent": 5,
+          "comment": "HTTP 探针端口",
+          "type": "string"
+        },
+        {
+          "display": "initialDelaySeconds: 20",
+          "path": "spec.template.spec.containers[].readinessProbe.initialDelaySeconds",
+          "indent": 5,
+          "comment": "首次探测延迟",
+          "type": "integer"
+        },
+        {
+          "display": "periodSeconds: 10",
+          "path": "spec.template.spec.containers[].readinessProbe.periodSeconds",
+          "indent": 5,
+          "comment": "探测周期",
+          "type": "integer"
+        },
+        {
+          "display": "timeoutSeconds: 2",
+          "path": "spec.template.spec.containers[].readinessProbe.timeoutSeconds",
+          "indent": 5,
+          "comment": "探测超时",
+          "type": "integer"
+        },
+        {
+          "display": "failureThreshold: 3",
+          "path": "spec.template.spec.containers[].readinessProbe.failureThreshold",
+          "indent": 5,
+          "comment": "连续失败阈值",
+          "type": "integer"
+        },
+        {
+          "display": "successThreshold: 1",
+          "path": "spec.template.spec.containers[].readinessProbe.successThreshold",
+          "indent": 5,
+          "comment": "连续成功阈值",
+          "type": "integer"
+        },
+        {
+          "display": "securityContext:",
+          "path": "spec.template.spec.containers[].securityContext",
+          "indent": 4,
+          "comment": "容器级安全上下文",
+          "type": "Object",
+          "description": "常用于限制 root 权限、禁止提权、启用只读根文件系统。"
+        },
+        {
+          "display": "runAsNonRoot: true",
+          "path": "spec.template.spec.containers[].securityContext.runAsNonRoot",
+          "indent": 5,
+          "comment": "必须以非 root 用户运行",
+          "type": "boolean"
+        },
+        {
+          "display": "readOnlyRootFilesystem: true",
+          "path": "spec.template.spec.containers[].securityContext.readOnlyRootFilesystem",
+          "indent": 5,
+          "comment": "只读根文件系统",
+          "type": "boolean"
+        },
+        {
+          "display": "allowPrivilegeEscalation: false",
+          "path": "spec.template.spec.containers[].securityContext.allowPrivilegeEscalation",
+          "indent": 5,
+          "comment": "禁止提权",
+          "type": "boolean"
+        },
+        {
+          "display": "volumes:",
+          "path": "spec.template.spec.volumes[]",
+          "indent": 3,
+          "comment": "挂载 ConfigMap、Secret 或持久卷",
+          "type": "[]Object"
+        },
+        {
+          "display": "emptyDir: {}",
+          "path": "spec.template.spec.volumes[].emptyDir",
+          "indent": 4,
+          "comment": "临时目录卷",
+          "type": "Object"
+        },
+        {
+          "display": "configMap.name: order-service-config",
+          "path": "spec.template.spec.volumes[].configMap.name",
+          "indent": 4,
+          "comment": "引用 ConfigMap 名称",
+          "type": "string"
+        },
+        {
+          "display": "secret.secretName: order-service-secret",
+          "path": "spec.template.spec.volumes[].secret.secretName",
+          "indent": 4,
+          "comment": "引用 Secret 名称",
+          "type": "string"
+        },
+        {
+          "display": "persistentVolumeClaim.claimName: shared-pvc",
+          "path": "spec.template.spec.volumes[].persistentVolumeClaim.claimName",
+          "indent": 4,
+          "comment": "引用现有 PVC",
+          "type": "string"
+        }
+      ]
+    },
+    "Service": {
+      "icon": "S",
+      "subtitle": "服务发现与负载均衡",
+      "focus": "ClusterIP、NodePort、会话保持、端口映射",
+      "summary": "Service 负责在集群内外稳定暴露服务能力。生产上除了类型和端口，还需要考虑双栈、真实源 IP、Headless Service 与访问来源控制。",
+      "schema": [
+        {
+          "display": "apiVersion: v1",
+          "path": "apiVersion",
+          "indent": 0,
+          "comment": "必选，Service API 版本",
+          "type": "string"
+        },
+        {
+          "display": "kind: Service",
+          "path": "kind",
+          "indent": 0,
+          "comment": "必选，资源类型",
+          "type": "string"
+        },
+        {
+          "display": "metadata:",
+          "path": "metadata",
+          "indent": 0,
+          "comment": "元数据",
+          "type": "Object"
+        },
+        {
+          "display": "name: string",
+          "path": "metadata.name",
+          "indent": 1,
+          "comment": "Service 名称",
+          "type": "string"
+        },
+        {
+          "display": "namespace: string",
+          "path": "metadata.namespace",
+          "indent": 1,
+          "comment": "命名空间",
+          "type": "string"
+        },
+        {
+          "display": "labels:",
+          "path": "metadata.labels",
+          "indent": 1,
+          "comment": "资源标签",
+          "type": "map[string]string"
+        },
+        {
+          "display": "annotations:",
+          "path": "metadata.annotations",
+          "indent": 1,
+          "comment": "云厂商 LB 或平台扩展注解",
+          "type": "map[string]string",
+          "description": "LoadBalancer 类型服务通常通过 annotations 控制 NLB、内网 SLB、健康检查等行为。"
+        },
+        {
+          "display": "spec:",
+          "path": "spec",
+          "indent": 0,
+          "comment": "Service 核心定义",
+          "type": "Object"
+        },
+        {
+          "display": "type: ClusterIP | NodePort | LoadBalancer",
+          "path": "spec.type",
+          "indent": 1,
+          "comment": "服务暴露方式",
+          "type": "string"
+        },
+        {
+          "display": "externalName: api.external.example.com",
+          "path": "spec.externalName",
+          "indent": 1,
+          "comment": "ExternalName 服务目标域名",
+          "type": "string"
+        },
+        {
+          "display": "loadBalancerClass: service.k8s.aws/nlb",
+          "path": "spec.loadBalancerClass",
+          "indent": 1,
+          "comment": "指定负载均衡实现类",
+          "type": "string"
+        },
+        {
+          "display": "clusterIP: string | None",
+          "path": "spec.clusterIP",
+          "indent": 1,
+          "comment": "普通 Service 或 Headless Service",
+          "type": "string"
+        },
+        {
+          "display": "publishNotReadyAddresses: false",
+          "path": "spec.publishNotReadyAddresses",
+          "indent": 1,
+          "comment": "是否发布未 Ready 地址",
+          "type": "boolean",
+          "description": "多用于 StatefulSet + Headless Service，让客户端在初始化阶段也能解析到 Pod DNS。"
+        },
+        {
+          "display": "ipFamilyPolicy: SingleStack | PreferDualStack | RequireDualStack",
+          "path": "spec.ipFamilyPolicy",
+          "indent": 1,
+          "comment": "IP 协议族策略",
+          "type": "string",
+          "description": "双栈集群中可控制服务使用 IPv4、IPv6 或双栈。"
+        },
+        {
+          "display": "ipFamilies:",
+          "path": "spec.ipFamilies",
+          "indent": 1,
+          "comment": "显式声明 IPv4/IPv6 顺序",
+          "type": "[]string"
+        },
+        {
+          "display": "- IPv4",
+          "path": "spec.ipFamilies",
+          "indent": 2,
+          "comment": "优先 IPv4",
+          "type": "string"
+        },
+        {
+          "display": "selector:",
+          "path": "spec.selector",
+          "indent": 1,
+          "comment": "选择后端 Pod 标签",
+          "type": "map[string]string"
+        },
+        {
+          "display": "sessionAffinity: None | ClientIP",
+          "path": "spec.sessionAffinity",
+          "indent": 1,
+          "comment": "会话保持策略",
+          "type": "string"
+        },
+        {
+          "display": "sessionAffinityConfig:",
+          "path": "spec.sessionAffinityConfig",
+          "indent": 1,
+          "comment": "ClientIP 粘性配置",
+          "type": "Object"
+        },
+        {
+          "display": "clientIP:",
+          "path": "spec.sessionAffinityConfig.clientIP",
+          "indent": 2,
+          "comment": "按客户端 IP 保持会话",
+          "type": "Object"
+        },
+        {
+          "display": "timeoutSeconds: 3600",
+          "path": "spec.sessionAffinityConfig.clientIP.timeoutSeconds",
+          "indent": 3,
+          "comment": "会话保持时间",
+          "type": "integer"
+        },
+        {
+          "display": "externalTrafficPolicy: Cluster | Local",
+          "path": "spec.externalTrafficPolicy",
+          "indent": 1,
+          "comment": "外部流量源 IP 保留策略",
+          "type": "string"
+        },
+        {
+          "display": "internalTrafficPolicy: Cluster | Local",
+          "path": "spec.internalTrafficPolicy",
+          "indent": 1,
+          "comment": "集群内部流量路由策略",
+          "type": "string"
+        },
+        {
+          "display": "externalIPs:",
+          "path": "spec.externalIPs",
+          "indent": 1,
+          "comment": "把外部 VIP 绑定到 Service",
+          "type": "[]string",
+          "description": "适合特定网络环境的固定入口地址映射，但要谨慎评估路由与安全策略。"
+        },
+        {
+          "display": "loadBalancerSourceRanges:",
+          "path": "spec.loadBalancerSourceRanges",
+          "indent": 1,
+          "comment": "限制可访问 LB 的源地址段",
+          "type": "[]string",
+          "description": "公网暴露服务时应显式限制办公网、WAF 或上游出口地址段。"
+        },
+        {
+          "display": "healthCheckNodePort: 32081",
+          "path": "spec.healthCheckNodePort",
+          "indent": 1,
+          "comment": "LB 本地健康检查节点端口",
+          "type": "integer",
+          "description": "externalTrafficPolicy=Local 时部分云平台会使用该端口进行健康检查。"
+        },
+        {
+          "display": "allocateLoadBalancerNodePorts: false",
+          "path": "spec.allocateLoadBalancerNodePorts",
+          "indent": 1,
+          "comment": "是否为 LoadBalancer 分配 NodePort",
+          "type": "boolean",
+          "description": "某些云平台支持关闭多余 NodePort 以减少暴露面。"
+        },
+        {
+          "display": "ports:",
+          "path": "spec.ports[]",
+          "indent": 1,
+          "comment": "服务端口列表",
+          "type": "[]ServicePort"
+        },
+        {
+          "display": "- name: http",
+          "path": "spec.ports[].name",
+          "indent": 2,
+          "comment": "端口名建议与协议语义一致",
+          "type": "string"
+        },
+        {
+          "display": "port: 80",
+          "path": "spec.ports[].port",
+          "indent": 2,
+          "comment": "Service 对外端口",
+          "type": "integer"
+        },
+        {
+          "display": "targetPort: http",
+          "path": "spec.ports[].targetPort",
+          "indent": 2,
+          "comment": "优先引用容器端口名",
+          "type": "string"
+        },
+        {
+          "display": "nodePort: 32080",
+          "path": "spec.ports[].nodePort",
+          "indent": 2,
+          "comment": "NodePort 时显式指定或自动分配",
+          "type": "integer"
+        },
+        {
+          "display": "protocol: TCP",
+          "path": "spec.ports[].protocol",
+          "indent": 2,
+          "comment": "传输层协议",
+          "type": "string"
+        },
+        {
+          "display": "appProtocol: http",
+          "path": "spec.ports[].appProtocol",
+          "indent": 2,
+          "comment": "应用层协议提示",
+          "type": "string",
+          "description": "用于向上游代理或平台表达 http、grpc、mqtt 等协议语义。"
+        }
+      ]
+    },
+    "Ingress": {
+      "icon": "I",
+      "subtitle": "七层流量入口网关",
+      "focus": "域名、TLS、CORS、重写、超时",
+      "summary": "Ingress 统一承接 HTTP/HTTPS 流量。生产场景除了 host/path/tls，还需要补齐 ssl-redirect、regex、来源白名单、gRPC 后端与证书自动签发等配置。",
+      "schema": [
+        {
+          "display": "apiVersion: networking.k8s.io/v1",
+          "path": "apiVersion",
+          "indent": 0,
+          "comment": "必选，Ingress API 版本",
+          "type": "string"
+        },
+        {
+          "display": "kind: Ingress",
+          "path": "kind",
+          "indent": 0,
+          "comment": "必选，资源类型",
+          "type": "string"
+        },
+        {
+          "display": "metadata:",
+          "path": "metadata",
+          "indent": 0,
+          "comment": "元数据",
+          "type": "Object"
+        },
+        {
+          "display": "name: string",
+          "path": "metadata.name",
+          "indent": 1,
+          "comment": "Ingress 名称",
+          "type": "string"
+        },
+        {
+          "display": "namespace: string",
+          "path": "metadata.namespace",
+          "indent": 1,
+          "comment": "命名空间",
+          "type": "string"
+        },
+        {
+          "display": "labels:",
+          "path": "metadata.labels",
+          "indent": 1,
+          "comment": "资源标签",
+          "type": "map[string]string"
+        },
+        {
+          "display": "annotations:",
+          "path": "metadata.annotations",
+          "indent": 1,
+          "comment": "控制器扩展行为",
+          "type": "map[string]string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/enable-cors: \"true\"",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/enable-cors",
+          "indent": 2,
+          "comment": "启用 CORS",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/cors-allow-origin: https://portal.example.com",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/cors-allow-origin",
+          "indent": 2,
+          "comment": "显式允许的前端域名",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/cors-allow-methods: GET,POST,PUT,DELETE,OPTIONS",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/cors-allow-methods",
+          "indent": 2,
+          "comment": "允许的跨域方法",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/cors-allow-headers: Authorization,Content-Type,X-Request-ID",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/cors-allow-headers",
+          "indent": 2,
+          "comment": "允许的跨域请求头",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/cors-allow-credentials: \"true\"",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/cors-allow-credentials",
+          "indent": 2,
+          "comment": "是否允许携带凭证",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/proxy-body-size: 20m",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/proxy-body-size",
+          "indent": 2,
+          "comment": "限制请求体大小",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/ssl-redirect: \"true\"",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/ssl-redirect",
+          "indent": 2,
+          "comment": "HTTP 自动跳转 HTTPS",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/use-regex: \"true\"",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/use-regex",
+          "indent": 2,
+          "comment": "启用正则匹配",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/rewrite-target: /$2",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/rewrite-target",
+          "indent": 2,
+          "comment": "路径重写",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/proxy-connect-timeout: \"5\"",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/proxy-connect-timeout",
+          "indent": 2,
+          "comment": "连接超时",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/proxy-send-timeout: \"60\"",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/proxy-send-timeout",
+          "indent": 2,
+          "comment": "发送超时",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/proxy-read-timeout: \"60\"",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/proxy-read-timeout",
+          "indent": 2,
+          "comment": "读取超时",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/whitelist-source-range: 10.0.0.0/8",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/whitelist-source-range",
+          "indent": 2,
+          "comment": "来源地址白名单",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/backend-protocol: \"GRPC\"",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/backend-protocol",
+          "indent": 2,
+          "comment": "声明后端协议",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/proxy-buffer-size: 16k",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/proxy-buffer-size",
+          "indent": 2,
+          "comment": "增大响应头缓冲区",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/proxy-request-buffering: \"off\"",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/proxy-request-buffering",
+          "indent": 2,
+          "comment": "关闭请求体缓冲",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/enable-access-log: \"true\"",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/enable-access-log",
+          "indent": 2,
+          "comment": "启用访问日志",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/canary: \"true\"",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/canary",
+          "indent": 2,
+          "comment": "启用灰度路由",
+          "type": "string"
+        },
+        {
+          "display": "nginx.ingress.kubernetes.io/canary-weight: \"10\"",
+          "path": "metadata.annotations.nginx.ingress.kubernetes.io/canary-weight",
+          "indent": 2,
+          "comment": "按流量权重灰度",
+          "type": "string"
+        },
+        {
+          "display": "cert-manager.io/cluster-issuer: letsencrypt-prod",
+          "path": "metadata.annotations.cert-manager.io/cluster-issuer",
+          "indent": 2,
+          "comment": "证书自动签发",
+          "type": "string"
+        },
+        {
+          "display": "spec:",
+          "path": "spec",
+          "indent": 0,
+          "comment": "Ingress 核心定义",
+          "type": "Object"
+        },
+        {
+          "display": "ingressClassName: nginx",
+          "path": "spec.ingressClassName",
+          "indent": 1,
+          "comment": "指定控制器",
+          "type": "string"
+        },
+        {
+          "display": "defaultBackend:",
+          "path": "spec.defaultBackend",
+          "indent": 1,
+          "comment": "默认后端服务",
+          "type": "Object",
+          "description": "当请求未命中任何 host/path 规则时，可转发到默认服务返回统一错误页。"
+        },
+        {
+          "display": "tls:",
+          "path": "spec.tls",
+          "indent": 1,
+          "comment": "HTTPS 证书配置",
+          "type": "[]IngressTLS"
+        },
+        {
+          "display": "- hosts:",
+          "path": "spec.tls",
+          "indent": 2,
+          "comment": "证书绑定域名",
+          "type": "[]string"
+        },
+        {
+          "display": "secretName: prod-example-com-tls",
+          "path": "spec.tls",
+          "indent": 3,
+          "comment": "TLS Secret 名称",
+          "type": "string"
+        },
+        {
+          "display": "rules:",
+          "path": "spec.rules[]",
+          "indent": 1,
+          "comment": "域名与路径路由规则",
+          "type": "[]IngressRule"
+        },
+        {
+          "display": "- host: api.prod.example.com",
+          "path": "spec.rules[].host",
+          "indent": 2,
+          "comment": "入口域名",
+          "type": "string"
+        },
+        {
+          "display": "http:",
+          "path": "spec.rules[].http",
+          "indent": 3,
+          "comment": "HTTP 路由集合",
+          "type": "Object"
+        },
+        {
+          "display": "paths:",
+          "path": "spec.rules[].http.paths[]",
+          "indent": 4,
+          "comment": "路径列表",
+          "type": "[]HTTPIngressPath"
+        },
+        {
+          "display": "- path: /order(/|$)(.*)",
+          "path": "spec.rules[].http.paths[].path",
+          "indent": 5,
+          "comment": "访问路径",
+          "type": "string"
+        },
+        {
+          "display": "pathType: Prefix | ImplementationSpecific",
+          "path": "spec.rules[].http.paths[].pathType",
+          "indent": 5,
+          "comment": "路径匹配方式",
+          "type": "string"
+        },
+        {
+          "display": "backend:",
+          "path": "spec.rules[].http.paths[].backend",
+          "indent": 5,
+          "comment": "后端服务",
+          "type": "Object"
+        },
+        {
+          "display": "service.name: order-service",
+          "path": "spec.rules[].http.paths[].backend.service.name",
+          "indent": 6,
+          "comment": "后端 Service 名称",
+          "type": "string"
+        },
+        {
+          "display": "service.port.number: 80",
+          "path": "spec.rules[].http.paths[].backend.service.port.number",
+          "indent": 6,
+          "comment": "后端 Service 端口",
+          "type": "integer"
+        },
+        {
+          "display": "service.port.name: http",
+          "path": "spec.rules[].http.paths[].backend.service.port.name",
+          "indent": 6,
+          "comment": "按端口名引用后端 Service 端口",
+          "type": "string"
+        }
+      ]
+    },
+    "ConfigMap": {
+      "icon": "C",
+      "subtitle": "非敏感配置管理",
+      "focus": "application.yml、envFrom、volumeMounts",
+      "summary": "ConfigMap 用于管理非敏感配置。生产上常见模式包括 application.yml 文件挂载、环境变量注入、固定键选择以及二进制配置分发。",
+      "schema": [
+        {
+          "display": "apiVersion: v1",
+          "path": "apiVersion",
+          "indent": 0,
+          "comment": "必选，ConfigMap API 版本",
+          "type": "string"
+        },
+        {
+          "display": "kind: ConfigMap",
+          "path": "kind",
+          "indent": 0,
+          "comment": "必选，资源类型",
+          "type": "string"
+        },
+        {
+          "display": "metadata:",
+          "path": "metadata",
+          "indent": 0,
+          "comment": "元数据",
+          "type": "Object"
+        },
+        {
+          "display": "name: string",
+          "path": "metadata.name",
+          "indent": 1,
+          "comment": "ConfigMap 名称",
+          "type": "string"
+        },
+        {
+          "display": "namespace: string",
+          "path": "metadata.namespace",
+          "indent": 1,
+          "comment": "命名空间",
+          "type": "string"
+        },
+        {
+          "display": "labels:",
+          "path": "metadata.labels",
+          "indent": 1,
+          "comment": "资源标签",
+          "type": "map[string]string"
+        },
+        {
+          "display": "annotations:",
+          "path": "metadata.annotations",
+          "indent": 1,
+          "comment": "扩展说明、版本信息",
+          "type": "map[string]string",
+          "description": "可记录配置来源、渲染版本、流水线批次等变更上下文。"
+        },
+        {
+          "display": "immutable: true | false",
+          "path": "immutable",
+          "indent": 0,
+          "comment": "是否不可变",
+          "type": "boolean"
+        },
+        {
+          "display": "data:",
+          "path": "data",
+          "indent": 0,
+          "comment": "文本配置键值区",
+          "type": "map[string]string"
+        },
+        {
+          "display": "application.yml: |",
+          "path": "data.application.yml",
+          "indent": 1,
+          "comment": "Spring Boot 外部配置文件",
+          "type": "map[string]string"
+        },
+        {
+          "display": "SPRING_PROFILES_ACTIVE: prod",
+          "path": "data.SPRING_PROFILES_ACTIVE",
+          "indent": 1,
+          "comment": "环境变量形式的简单配置",
+          "type": "string"
+        },
+        {
+          "display": "binaryData:",
+          "path": "binaryData",
+          "indent": 0,
+          "comment": "二进制配置或证书内容",
+          "type": "map[string]string",
+          "description": "适合存放 base64 编码后的 truststore、license、二进制模板等非敏感内容。"
+        },
+        {
+          "display": "volumes[].configMap:",
+          "path": "spec.template.spec.volumes[].configMap",
+          "indent": 0,
+          "comment": "在 Pod 中挂载 ConfigMap 文件",
+          "type": "Object"
+        },
+        {
+          "display": "name: order-service-config",
+          "path": "spec.template.spec.volumes[].configMap.name",
+          "indent": 1,
+          "comment": "引用 ConfigMap 名称",
+          "type": "string"
+        },
+        {
+          "display": "items:",
+          "path": "spec.template.spec.volumes[].configMap.items[]",
+          "indent": 1,
+          "comment": "只选择部分键进行挂载",
+          "type": "[]KeyToPath"
+        },
+        {
+          "display": "- key: application.yml",
+          "path": "spec.template.spec.volumes[].configMap.items[].key",
+          "indent": 2,
+          "comment": "源键名",
+          "type": "string"
+        },
+        {
+          "display": "path: application.yml",
+          "path": "spec.template.spec.volumes[].configMap.items[].path",
+          "indent": 2,
+          "comment": "挂载后文件名",
+          "type": "string"
+        },
+        {
+          "display": "optional: false",
+          "path": "spec.template.spec.volumes[].configMap.optional",
+          "indent": 1,
+          "comment": "缺失时是否容忍",
+          "type": "boolean"
+        },
+        {
+          "display": "containers[].volumeMounts[]:",
+          "path": "spec.template.spec.containers[].volumeMounts[]",
+          "indent": 0,
+          "comment": "把文件挂到容器目录",
+          "type": "[]VolumeMount"
+        },
+        {
+          "display": "containers[].envFrom[].configMapRef:",
+          "path": "spec.template.spec.containers[].envFrom[].configMapRef",
+          "indent": 0,
+          "comment": "批量注入环境变量",
+          "type": "Object"
+        },
+        {
+          "display": "prefix: APP_",
+          "path": "spec.template.spec.containers[].envFrom[].prefix",
+          "indent": 1,
+          "comment": "为批量注入变量统一加前缀",
+          "type": "string"
+        },
+        {
+          "display": "optional: false",
+          "path": "spec.template.spec.containers[].envFrom[].configMapRef.optional",
+          "indent": 1,
+          "comment": "ConfigMap 缺失时是否容忍",
+          "type": "boolean"
+        },
+        {
+          "display": "containers[].env[].valueFrom.configMapKeyRef:",
+          "path": "spec.template.spec.containers[].env[].valueFrom.configMapKeyRef",
+          "indent": 0,
+          "comment": "显式引用单个键",
+          "type": "Object"
+        }
+      ]
+    },
+    "Secret": {
+      "icon": "Se",
+      "subtitle": "敏感信息安全存储",
+      "focus": "stringData、secretKeyRef、TLS、dockerconfigjson",
+      "summary": "Secret 用于管理密码、证书、私钥和镜像仓库凭据。生产上除了 env 注入，还常涉及 immutable、volume items、可选项以及 dockerconfigjson/TLS 特殊类型。",
+      "schema": [
+        {
+          "display": "apiVersion: v1",
+          "path": "apiVersion",
+          "indent": 0,
+          "comment": "必选，Secret API 版本",
+          "type": "string"
+        },
+        {
+          "display": "kind: Secret",
+          "path": "kind",
+          "indent": 0,
+          "comment": "必选，资源类型",
+          "type": "string"
+        },
+        {
+          "display": "metadata:",
+          "path": "metadata",
+          "indent": 0,
+          "comment": "元数据",
+          "type": "Object"
+        },
+        {
+          "display": "name: string",
+          "path": "metadata.name",
+          "indent": 1,
+          "comment": "Secret 名称",
+          "type": "string"
+        },
+        {
+          "display": "namespace: string",
+          "path": "metadata.namespace",
+          "indent": 1,
+          "comment": "命名空间",
+          "type": "string"
+        },
+        {
+          "display": "labels:",
+          "path": "metadata.labels",
+          "indent": 1,
+          "comment": "资源标签",
+          "type": "map[string]string"
+        },
+        {
+          "display": "annotations:",
+          "path": "metadata.annotations",
+          "indent": 1,
+          "comment": "轮转信息、External Secrets 元数据",
+          "type": "map[string]string",
+          "description": "可记录轮转批次、密钥来源、托管系统信息等。"
+        },
+        {
+          "display": "immutable: true | false",
+          "path": "immutable",
+          "indent": 0,
+          "comment": "是否不可变",
+          "type": "boolean"
+        },
+        {
+          "display": "type: Opaque | kubernetes.io/tls | kubernetes.io/dockerconfigjson",
+          "path": "type",
+          "indent": 0,
+          "comment": "Secret 类型",
+          "type": "string"
+        },
+        {
+          "display": "stringData:",
+          "path": "stringData",
+          "indent": 0,
+          "comment": "明文键值，提交时自动转 data",
+          "type": "map[string]string"
+        },
+        {
+          "display": "data:",
+          "path": "data",
+          "indent": 0,
+          "comment": "base64 编码后的敏感数据",
+          "type": "map[string]string"
+        },
+        {
+          "display": ".dockerconfigjson: BASE64...",
+          "path": "data..dockerconfigjson",
+          "indent": 1,
+          "comment": "私有镜像仓库认证数据",
+          "type": "string"
+        },
+        {
+          "display": "tls.crt / tls.key",
+          "path": "data.tls.crt / data.tls.key",
+          "indent": 1,
+          "comment": "TLS 证书与私钥",
+          "type": "map[string]string"
+        },
+        {
+          "display": "volumes[].secret:",
+          "path": "spec.template.spec.volumes[].secret",
+          "indent": 0,
+          "comment": "将 Secret 挂载为文件",
+          "type": "Object"
+        },
+        {
+          "display": "secretName: order-service-client-cert",
+          "path": "spec.template.spec.volumes[].secret.secretName",
+          "indent": 1,
+          "comment": "引用 Secret 名称",
+          "type": "string"
+        },
+        {
+          "display": "items:",
+          "path": "spec.template.spec.volumes[].secret.items[]",
+          "indent": 1,
+          "comment": "只投射部分键",
+          "type": "[]KeyToPath"
+        },
+        {
+          "display": "- key: tls.crt",
+          "path": "spec.template.spec.volumes[].secret.items[].key",
+          "indent": 2,
+          "comment": "源键名",
+          "type": "string"
+        },
+        {
+          "display": "path: tls.crt",
+          "path": "spec.template.spec.volumes[].secret.items[].path",
+          "indent": 2,
+          "comment": "容器内文件名",
+          "type": "string"
+        },
+        {
+          "display": "optional: false",
+          "path": "spec.template.spec.volumes[].secret.optional",
+          "indent": 1,
+          "comment": "缺失时是否容忍",
+          "type": "boolean"
+        },
+        {
+          "display": "containers[].env[].valueFrom.secretKeyRef:",
+          "path": "spec.template.spec.containers[].env[].valueFrom.secretKeyRef",
+          "indent": 0,
+          "comment": "按键注入密码或 Token",
+          "type": "Object"
+        },
+        {
+          "display": "optional: false",
+          "path": "spec.template.spec.containers[].env[].valueFrom.secretKeyRef.optional",
+          "indent": 1,
+          "comment": "引用键是否可选",
+          "type": "boolean"
+        },
+        {
+          "display": "containers[].envFrom[].secretRef:",
+          "path": "spec.template.spec.containers[].envFrom[].secretRef",
+          "indent": 0,
+          "comment": "批量注入多个敏感变量",
+          "type": "Object"
+        },
+        {
+          "display": "prefix: SECRET_",
+          "path": "spec.template.spec.containers[].envFrom[].prefix",
+          "indent": 1,
+          "comment": "为批量注入变量统一加前缀",
+          "type": "string"
+        },
+        {
+          "display": "optional: false",
+          "path": "spec.template.spec.containers[].envFrom[].secretRef.optional",
+          "indent": 1,
+          "comment": "Secret 缺失时是否容忍",
+          "type": "boolean"
+        }
+      ]
+    },
+    "PVC": {
+      "icon": "P",
+      "subtitle": "持久化存储卷声明",
+      "focus": "容量、存储类、访问模式、快照恢复",
+      "summary": "PVC 为有状态组件或需要持久化数据的应用声明存储资源。除了容量和存储类，生产中还常涉及 selector 绑定、snapshot 恢复和预置卷接管。",
+      "schema": [
+        {
+          "display": "apiVersion: v1",
+          "path": "apiVersion",
+          "indent": 0,
+          "comment": "必选，PVC API 版本",
+          "type": "string"
+        },
+        {
+          "display": "kind: PersistentVolumeClaim",
+          "path": "kind",
+          "indent": 0,
+          "comment": "必选，资源类型",
+          "type": "string"
+        },
+        {
+          "display": "metadata:",
+          "path": "metadata",
+          "indent": 0,
+          "comment": "元数据",
+          "type": "Object"
+        },
+        {
+          "display": "name: string",
+          "path": "metadata.name",
+          "indent": 1,
+          "comment": "PVC 名称",
+          "type": "string"
+        },
+        {
+          "display": "namespace: string",
+          "path": "metadata.namespace",
+          "indent": 1,
+          "comment": "命名空间",
+          "type": "string"
+        },
+        {
+          "display": "labels:",
+          "path": "metadata.labels",
+          "indent": 1,
+          "comment": "资源标签",
+          "type": "map[string]string"
+        },
+        {
+          "display": "annotations:",
+          "path": "metadata.annotations",
+          "indent": 1,
+          "comment": "备份、归档、运维策略标记",
+          "type": "map[string]string"
+        },
+        {
+          "display": "spec:",
+          "path": "spec",
+          "indent": 0,
+          "comment": "PVC 核心定义",
+          "type": "Object"
+        },
+        {
+          "display": "accessModes:",
+          "path": "spec.accessModes",
+          "indent": 1,
+          "comment": "卷访问模式",
+          "type": "[]string"
+        },
+        {
+          "display": "- ReadWriteOnce",
+          "path": "spec.accessModes",
+          "indent": 2,
+          "comment": "最常见的单节点读写",
+          "type": "string"
+        },
+        {
+          "display": "resources:",
+          "path": "spec.resources",
+          "indent": 1,
+          "comment": "存储资源申请",
+          "type": "Object"
+        },
+        {
+          "display": "requests.storage: 100Gi",
+          "path": "spec.resources.requests.storage",
+          "indent": 2,
+          "comment": "申请容量",
+          "type": "Object"
+        },
+        {
+          "display": "storageClassName: csi-ssd",
+          "path": "spec.storageClassName",
+          "indent": 1,
+          "comment": "存储类别",
+          "type": "string"
+        },
+        {
+          "display": "volumeMode: Filesystem",
+          "path": "spec.volumeMode",
+          "indent": 1,
+          "comment": "卷模式",
+          "type": "string"
+        },
+        {
+          "display": "selector:",
+          "path": "spec.selector",
+          "indent": 1,
+          "comment": "绑定带标签的现有 PV",
+          "type": "Object",
+          "description": "适合接管特定静态卷或历史存储。"
+        },
+        {
+          "display": "matchLabels:",
+          "path": "spec.selector.matchLabels",
+          "indent": 2,
+          "comment": "PV 标签选择器",
+          "type": "map[string]string"
+        },
+        {
+          "display": "dataSource:",
+          "path": "spec.dataSource",
+          "indent": 1,
+          "comment": "从快照或 PVC 恢复数据",
+          "type": "TypedLocalObjectReference"
+        },
+        {
+          "display": "dataSourceRef:",
+          "path": "spec.dataSourceRef",
+          "indent": 1,
+          "comment": "更通用的数据来源引用",
+          "type": "TypedObjectReference"
+        },
+        {
+          "display": "volumeName: pv-name",
+          "path": "spec.volumeName",
+          "indent": 1,
+          "comment": "绑定预创建 PV",
+          "type": "string"
+        }
+      ]
+    },
+    "StatefulSet": {
+      "icon": "SS",
+      "subtitle": "有状态应用编排",
+      "focus": "Headless Service、PVC 模板、更新顺序",
+      "summary": "StatefulSet 用于 Redis、Kafka、MySQL 等有状态集群。生产上除了 serviceName 和 PVC，还要关注副本顺序、历史版本、启动序号、Pod 安全与探针策略。",
+      "schema": [
+        {
+          "display": "apiVersion: apps/v1",
+          "path": "apiVersion",
+          "indent": 0,
+          "comment": "必选，StatefulSet API 版本",
+          "type": "string"
+        },
+        {
+          "display": "kind: StatefulSet",
+          "path": "kind",
+          "indent": 0,
+          "comment": "必选，资源类型",
+          "type": "string"
+        },
+        {
+          "display": "metadata:",
+          "path": "metadata",
+          "indent": 0,
+          "comment": "元数据",
+          "type": "Object"
+        },
+        {
+          "display": "name: string",
+          "path": "metadata.name",
+          "indent": 1,
+          "comment": "StatefulSet 名称",
+          "type": "string"
+        },
+        {
+          "display": "namespace: string",
+          "path": "metadata.namespace",
+          "indent": 1,
+          "comment": "命名空间",
+          "type": "string"
+        },
+        {
+          "display": "labels:",
+          "path": "metadata.labels",
+          "indent": 1,
+          "comment": "资源标签",
+          "type": "map[string]string"
+        },
+        {
+          "display": "annotations:",
+          "path": "metadata.annotations",
+          "indent": 1,
+          "comment": "扩展说明与变更上下文",
+          "type": "map[string]string"
+        },
+        {
+          "display": "spec:",
+          "path": "spec",
+          "indent": 0,
+          "comment": "StatefulSet 核心定义",
+          "type": "Object"
+        },
+        {
+          "display": "serviceName: redis-headless",
+          "path": "spec.serviceName",
+          "indent": 1,
+          "comment": "指向 Headless Service",
+          "type": "string"
+        },
+        {
+          "display": "replicas: 3",
+          "path": "spec.replicas",
+          "indent": 1,
+          "comment": "有状态副本数",
+          "type": "integer"
+        },
+        {
+          "display": "selector:",
+          "path": "spec.selector",
+          "indent": 1,
+          "comment": "必须与 template.labels 匹配",
+          "type": "Object"
+        },
+        {
+          "display": "matchLabels:",
+          "path": "spec.selector.matchLabels",
+          "indent": 2,
+          "comment": "稳定标签选择器",
+          "type": "map[string]string"
+        },
+        {
+          "display": "podManagementPolicy: OrderedReady | Parallel",
+          "path": "spec.podManagementPolicy",
+          "indent": 1,
+          "comment": "Pod 启动管理策略",
+          "type": "string"
+        },
+        {
+          "display": "updateStrategy:",
+          "path": "spec.updateStrategy",
+          "indent": 1,
+          "comment": "滚动更新策略",
+          "type": "Object"
+        },
+        {
+          "display": "type: RollingUpdate",
+          "path": "spec.updateStrategy",
+          "indent": 2,
+          "comment": "有序滚动升级",
+          "type": "string"
+        },
+        {
+          "display": "partition: 1",
+          "path": "spec.updateStrategy",
+          "indent": 2,
+          "comment": "保留部分旧副本",
+          "type": "integer"
+        },
+        {
+          "display": "revisionHistoryLimit: 10",
+          "path": "spec.revisionHistoryLimit",
+          "indent": 1,
+          "comment": "保留历史版本数",
+          "type": "integer"
+        },
+        {
+          "display": "minReadySeconds: 10",
+          "path": "spec.minReadySeconds",
+          "indent": 1,
+          "comment": "Ready 后继续观察的时间",
+          "type": "integer"
+        },
+        {
+          "display": "ordinals.start: 0",
+          "path": "spec.ordinals.start",
+          "indent": 1,
+          "comment": "起始序号",
+          "type": "integer",
+          "description": "适合分批迁移或与既有编号体系对齐。"
+        },
+        {
+          "display": "persistentVolumeClaimRetentionPolicy:",
+          "path": "spec.persistentVolumeClaimRetentionPolicy",
+          "indent": 1,
+          "comment": "删除或缩容后的 PVC 保留策略",
+          "type": "Object"
+        },
+        {
+          "display": "whenDeleted: Retain",
+          "path": "spec.persistentVolumeClaimRetentionPolicy",
+          "indent": 2,
+          "comment": "删除时保留数据",
+          "type": "string"
+        },
+        {
+          "display": "whenScaled: Retain",
+          "path": "spec.persistentVolumeClaimRetentionPolicy",
+          "indent": 2,
+          "comment": "缩容时保留数据",
+          "type": "string"
+        },
+        {
+          "display": "template:",
+          "path": "spec.template",
+          "indent": 1,
+          "comment": "Pod 模板",
+          "type": "Object"
+        },
+        {
+          "display": "metadata:",
+          "path": "spec.template.metadata",
+          "indent": 2,
+          "comment": "Pod 元数据",
+          "type": "Object"
+        },
+        {
+          "display": "labels:",
+          "path": "spec.template.metadata.labels",
+          "indent": 3,
+          "comment": "与 selector 对齐",
+          "type": "map[string]string"
+        },
+        {
+          "display": "annotations:",
+          "path": "spec.template.metadata.annotations",
+          "indent": 3,
+          "comment": "配置 checksum、监控、sidecar 控制",
+          "type": "map[string]string"
+        },
+        {
+          "display": "spec:",
+          "path": "spec.template.spec",
+          "indent": 2,
+          "comment": "Pod 级配置",
+          "type": "Object"
+        },
+        {
+          "display": "securityContext:",
+          "path": "spec.template.spec.securityContext",
+          "indent": 3,
+          "comment": "Pod 级安全上下文",
+          "type": "Object",
+          "description": "用于统一设定 runAsUser、runAsGroup、fsGroup 等卷权限和运行用户参数。"
+        },
+        {
+          "display": "runAsUser: 10001",
+          "path": "spec.template.spec.securityContext.runAsUser",
+          "indent": 4,
+          "comment": "Pod 内主进程运行用户 ID",
+          "type": "integer"
+        },
+        {
+          "display": "runAsGroup: 10001",
+          "path": "spec.template.spec.securityContext.runAsGroup",
+          "indent": 4,
+          "comment": "Pod 内主进程运行组 ID",
+          "type": "integer"
+        },
+        {
+          "display": "fsGroup: 10001",
+          "path": "spec.template.spec.securityContext.fsGroup",
+          "indent": 4,
+          "comment": "共享卷文件组权限",
+          "type": "integer"
+        },
+        {
+          "display": "serviceAccountName: string",
+          "path": "spec.template.spec.serviceAccountName",
+          "indent": 3,
+          "comment": "绑定最小权限服务账号",
+          "type": "string"
+        },
+        {
+          "display": "priorityClassName: middleware-critical",
+          "path": "spec.template.spec.priorityClassName",
+          "indent": 3,
+          "comment": "中间件优先级类",
+          "type": "string"
+        },
+        {
+          "display": "nodeSelector:",
+          "path": "spec.template.spec.nodeSelector",
+          "indent": 3,
+          "comment": "简单节点标签约束",
+          "type": "map[string]string"
+        },
+        {
+          "display": "dnsPolicy: ClusterFirst",
+          "path": "spec.template.spec.dnsPolicy",
+          "indent": 3,
+          "comment": "DNS 策略",
+          "type": "string"
+        },
+        {
+          "display": "hostAliases:",
+          "path": "spec.template.spec.hostAliases",
+          "indent": 3,
+          "comment": "附加静态 hosts 解析",
+          "type": "[]Object"
+        },
+        {
+          "display": "tolerations:",
+          "path": "spec.template.spec.tolerations",
+          "indent": 3,
+          "comment": "容忍专用节点污点",
+          "type": "[]Object"
+        },
+        {
+          "display": "affinity.podAntiAffinity:",
+          "path": "spec.template.spec.affinity.podAntiAffinity",
+          "indent": 3,
+          "comment": "副本打散",
+          "type": "Object"
+        },
+        {
+          "display": "terminationGracePeriodSeconds: 120",
+          "path": "spec.template.spec.terminationGracePeriodSeconds",
+          "indent": 3,
+          "comment": "更长的优雅停机窗口",
+          "type": "integer"
+        },
+        {
+          "display": "restartPolicy: Always",
+          "path": "spec.template.spec.restartPolicy",
+          "indent": 3,
+          "comment": "StatefulSet Pod 固定为 Always",
+          "type": "string"
+        },
+        {
+          "display": "containers:",
+          "path": "spec.template.spec.containers[]",
+          "indent": 3,
+          "comment": "有状态容器列表",
+          "type": "[]Object"
+        },
+        {
+          "display": "- name: redis",
+          "path": "spec.template.spec.containers[].name",
+          "indent": 4,
+          "comment": "容器名称",
+          "type": "string"
+        },
+        {
+          "display": "image: registry.example.com/middleware/redis:7.2.5-1",
+          "path": "spec.template.spec.containers[].image",
+          "indent": 4,
+          "comment": "固定版本镜像",
+          "type": "string"
+        },
+        {
+          "display": "imagePullPolicy: IfNotPresent",
+          "path": "spec.template.spec.containers[].imagePullPolicy",
+          "indent": 4,
+          "comment": "镜像拉取策略",
+          "type": "string"
+        },
+        {
+          "display": "ports:",
+          "path": "spec.template.spec.containers[].ports[]",
+          "indent": 4,
+          "comment": "容器端口",
+          "type": "[]Object"
+        },
+        {
+          "display": "- name: redis",
+          "path": "spec.template.spec.containers[].ports[].name",
+          "indent": 5,
+          "comment": "语义化端口名",
+          "type": "string"
+        },
+        {
+          "display": "containerPort: 6379",
+          "path": "spec.template.spec.containers[].ports[].containerPort",
+          "indent": 5,
+          "comment": "容器监听端口",
+          "type": "integer"
+        },
+        {
+          "display": "protocol: TCP",
+          "path": "spec.template.spec.containers[].ports[].protocol",
+          "indent": 5,
+          "comment": "端口协议",
+          "type": "string"
+        },
+        {
+          "display": "env:",
+          "path": "spec.template.spec.containers[].env[]",
+          "indent": 4,
+          "comment": "环境变量",
+          "type": "[]EnvVar"
+        },
+        {
+          "display": "envFrom:",
+          "path": "spec.template.spec.containers[].envFrom",
+          "indent": 4,
+          "comment": "批量引入 ConfigMap 或 Secret",
+          "type": "[]Object"
+        },
+        {
+          "display": "prefix: REDIS_",
+          "path": "spec.template.spec.containers[].envFrom[].prefix",
+          "indent": 5,
+          "comment": "统一变量前缀",
+          "type": "string"
+        },
+        {
+          "display": "valueFrom:",
+          "path": "spec.template.spec.containers[].env[].valueFrom",
+          "indent": 5,
+          "comment": "从 Secret 或 Pod 字段读取值",
+          "type": "Object"
+        },
+        {
+          "display": "- name: REDIS_PASSWORD",
+          "path": "spec.template.spec.containers[].env[].name",
+          "indent": 5,
+          "comment": "环境变量名称",
+          "type": "string"
+        },
+        {
+          "display": "resources:",
+          "path": "spec.template.spec.containers[].resources",
+          "indent": 4,
+          "comment": "资源请求与限制",
+          "type": "Object"
+        },
+        {
+          "display": "volumeMounts:",
+          "path": "spec.template.spec.containers[].volumeMounts[]",
+          "indent": 4,
+          "comment": "把 PVC 挂入容器",
+          "type": "[]VolumeMount"
+        },
+        {
+          "display": "livenessProbe:",
+          "path": "spec.template.spec.containers[].livenessProbe",
+          "indent": 4,
+          "comment": "存活探针",
+          "type": "Object"
+        },
+        {
+          "display": "tcpSocket.port: redis",
+          "path": "spec.template.spec.containers[].livenessProbe.tcpSocket.port",
+          "indent": 5,
+          "comment": "TCP 探针端口",
+          "type": "string"
+        },
+        {
+          "display": "initialDelaySeconds: 20",
+          "path": "spec.template.spec.containers[].livenessProbe.initialDelaySeconds",
+          "indent": 5,
+          "comment": "首次探测延迟",
+          "type": "integer"
+        },
+        {
+          "display": "periodSeconds: 15",
+          "path": "spec.template.spec.containers[].livenessProbe.periodSeconds",
+          "indent": 5,
+          "comment": "探测周期",
+          "type": "integer"
+        },
+        {
+          "display": "timeoutSeconds: 2",
+          "path": "spec.template.spec.containers[].livenessProbe.timeoutSeconds",
+          "indent": 5,
+          "comment": "探测超时",
+          "type": "integer"
+        },
+        {
+          "display": "failureThreshold: 5",
+          "path": "spec.template.spec.containers[].livenessProbe.failureThreshold",
+          "indent": 5,
+          "comment": "连续失败阈值",
+          "type": "integer"
+        },
+        {
+          "display": "readinessProbe:",
+          "path": "spec.template.spec.containers[].readinessProbe",
+          "indent": 4,
+          "comment": "就绪探针",
+          "type": "Object"
+        },
+        {
+          "display": "tcpSocket.port: redis",
+          "path": "spec.template.spec.containers[].readinessProbe.tcpSocket.port",
+          "indent": 5,
+          "comment": "TCP 探针端口",
+          "type": "string"
+        },
+        {
+          "display": "initialDelaySeconds: 10",
+          "path": "spec.template.spec.containers[].readinessProbe.initialDelaySeconds",
+          "indent": 5,
+          "comment": "首次探测延迟",
+          "type": "integer"
+        },
+        {
+          "display": "periodSeconds: 5",
+          "path": "spec.template.spec.containers[].readinessProbe.periodSeconds",
+          "indent": 5,
+          "comment": "探测周期",
+          "type": "integer"
+        },
+        {
+          "display": "timeoutSeconds: 2",
+          "path": "spec.template.spec.containers[].readinessProbe.timeoutSeconds",
+          "indent": 5,
+          "comment": "探测超时",
+          "type": "integer"
+        },
+        {
+          "display": "failureThreshold: 6",
+          "path": "spec.template.spec.containers[].readinessProbe.failureThreshold",
+          "indent": 5,
+          "comment": "连续失败阈值",
+          "type": "integer"
+        },
+        {
+          "display": "startupProbe:",
+          "path": "spec.template.spec.containers[].startupProbe",
+          "indent": 4,
+          "comment": "慢启动保护",
+          "type": "Object"
+        },
+        {
+          "display": "tcpSocket.port: redis",
+          "path": "spec.template.spec.containers[].startupProbe.tcpSocket.port",
+          "indent": 5,
+          "comment": "TCP 探针端口",
+          "type": "string"
+        },
+        {
+          "display": "failureThreshold: 30",
+          "path": "spec.template.spec.containers[].startupProbe.failureThreshold",
+          "indent": 5,
+          "comment": "允许的连续失败次数",
+          "type": "integer"
+        },
+        {
+          "display": "periodSeconds: 10",
+          "path": "spec.template.spec.containers[].startupProbe.periodSeconds",
+          "indent": 5,
+          "comment": "探测周期",
+          "type": "integer"
+        },
+        {
+          "display": "timeoutSeconds: 3",
+          "path": "spec.template.spec.containers[].startupProbe.timeoutSeconds",
+          "indent": 5,
+          "comment": "探测超时",
+          "type": "integer"
+        },
+        {
+          "display": "lifecycle.preStop:",
+          "path": "spec.template.spec.containers[].lifecycle.preStop",
+          "indent": 4,
+          "comment": "优雅退出",
+          "type": "Object"
+        },
+        {
+          "display": "securityContext:",
+          "path": "spec.template.spec.containers[].securityContext",
+          "indent": 4,
+          "comment": "容器级安全上下文",
+          "type": "Object"
+        },
+        {
+          "display": "volumeClaimTemplates:",
+          "path": "spec.volumeClaimTemplates[]",
+          "indent": 1,
+          "comment": "为每个副本分配独立 PVC",
+          "type": "[]PersistentVolumeClaim"
+        },
+        {
+          "display": "metadata.name: redis-data",
+          "path": "spec.volumeClaimTemplates[].metadata.name",
+          "indent": 2,
+          "comment": "PVC 模板名称",
+          "type": "string"
+        },
+        {
+          "display": "spec.accessModes:",
+          "path": "spec.volumeClaimTemplates[].spec.accessModes",
+          "indent": 2,
+          "comment": "每个副本卷的访问模式",
+          "type": "[]string"
+        },
+        {
+          "display": "spec.resources.requests.storage: 100Gi",
+          "path": "spec.volumeClaimTemplates[].spec.resources.requests.storage",
+          "indent": 2,
+          "comment": "每个副本卷容量",
+          "type": "Object"
+        },
+        {
+          "display": "spec.storageClassName: csi-ssd",
+          "path": "spec.volumeClaimTemplates[].spec.storageClassName",
+          "indent": 2,
+          "comment": "每个副本卷存储类",
+          "type": "string"
+        },
+        {
+          "display": "spec.volumeMode: Filesystem",
+          "path": "spec.volumeClaimTemplates[].spec.volumeMode",
+          "indent": 2,
+          "comment": "卷模式",
+          "type": "string"
+        }
+      ]
+    }
+  }
+}

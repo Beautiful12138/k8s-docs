@@ -1,0 +1,934 @@
+{
+  "Deployment": [
+    {
+      "path": "metadata.annotations",
+      "type": "map[string]string",
+      "description": "Deployment 元数据注解。生产上常用于记录变更原因、配置版本、Git 提交号或 checksum/config，以便在 ConfigMap/Secret 变更时自动触发滚动发布。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\n  annotations:\n    kubernetes.io/change-cause: \"release 2026-03-28 build 1186\"\n    checksum/config: \"2a5cb9e0c6f4d8a1738b4d45d9f0c8a1\"\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service"
+    },
+    {
+      "path": "spec.replicas",
+      "type": "integer",
+      "description": "无状态微服务的副本数。生产环境不建议只保留 1 个副本，通常至少 3 个副本起步，再结合 HPA 在流量高峰自动扩容，从而同时满足滚动发布、节点维护与故障转移。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\n  labels:\n    app.kubernetes.io/name: order-service\n    app.kubernetes.io/part-of: commerce\nspec:\n  replicas: 3\n  revisionHistoryLimit: 10\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          ports:\n            - name: http\n              containerPort: 8080"
+    },
+    {
+      "path": "spec.minReadySeconds",
+      "type": "integer",
+      "description": "最小就绪时间。新 Pod 连续 Ready 达到该秒数后才会被视为可用副本，适合需要缓存预热、连接池建连或服务注册传播时间的微服务。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 4\n  minReadySeconds: 30\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service"
+    },
+    {
+      "path": "spec.revisionHistoryLimit",
+      "type": "integer",
+      "description": "保留历史 ReplicaSet 数量。生产建议保留足够的回滚版本，一般为 5 到 10；过大则会增加控制平面对象数量与认知负担。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  revisionHistoryLimit: 10\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service"
+    },
+    {
+      "path": "spec.progressDeadlineSeconds",
+      "type": "integer",
+      "description": "Deployment 发布推进超时。若滚动更新在指定时间内仍无法完成，控制器会标记进度失败，便于告警系统和发布平台及时终止异常发布。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  progressDeadlineSeconds: 600\n  replicas: 3\n  strategy:\n    type: RollingUpdate\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service"
+    },
+    {
+      "path": "spec.strategy",
+      "type": "Object",
+      "description": "Deployment 的滚动发布策略。生产建议使用 RollingUpdate，并将 maxUnavailable 设为 0 或较小值，保证升级期间服务可用；maxSurge 用于平滑新增实例，避免一次性拉起过多 Pod 挤爆节点资源。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 4\n  strategy:\n    type: RollingUpdate\n    rollingUpdate:\n      maxSurge: 25%\n      maxUnavailable: 0\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6"
+    },
+    {
+      "path": "spec.template.spec.serviceAccountName",
+      "type": "string",
+      "description": "Pod 使用的 ServiceAccount。生产不建议直接使用 default 账号，应该为需要访问 K8s API、云存储、消息系统的服务绑定最小权限账号。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      serviceAccountName: order-service-sa\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6"
+    },
+    {
+      "path": "spec.template.spec.imagePullSecrets",
+      "type": "[]LocalObjectReference",
+      "description": "私有镜像仓库凭据引用。生产集群通常接入企业 Harbor、ACR、ECR 或私有制品库，建议统一创建命名规范的 dockerconfigjson Secret，并通过 imagePullSecrets 注入，避免在镜像拉取阶段失败。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      imagePullSecrets:\n        - name: regcred-prod\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          imagePullPolicy: IfNotPresent"
+    },
+    {
+      "path": "spec.template.spec.nodeSelector",
+      "type": "map[string]string",
+      "description": "简单节点标签选择器。适合把微服务固定在 application 节点池、特定 CPU 架构或合规节点上；如果策略更复杂，再升级为 nodeAffinity。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      nodeSelector:\n        nodepool: application\n        kubernetes.io/arch: amd64\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6"
+    },
+    {
+      "path": "spec.template.spec.tolerations",
+      "type": "[]Object",
+      "description": "容忍带污点的节点。生产常与 dedicated 节点池配合，把核心业务、计算密集型任务或中间件固定到专用节点，避免与杂项工作负载互相抢占资源。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      tolerations:\n        - key: \"dedicated\"\n          operator: \"Equal\"\n          value: \"application\"\n          effect: \"NoSchedule\"\n      nodeSelector:\n        nodepool: application\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6"
+    },
+    {
+      "path": "spec.template.spec.affinity.nodeAffinity",
+      "type": "Object",
+      "description": "节点亲和性用于把业务工作负载调度到指定节点池，例如 application 节点池、SSD 节点或特定可用区。生产上常用 requiredDuringSchedulingIgnoredDuringExecution 做硬约束，再配合 preferredDuringSchedulingIgnoredDuringExecution 做软偏好。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      affinity:\n        nodeAffinity:\n          requiredDuringSchedulingIgnoredDuringExecution:\n            nodeSelectorTerms:\n              - matchExpressions:\n                  - key: nodepool\n                    operator: In\n                    values:\n                      - application\n          preferredDuringSchedulingIgnoredDuringExecution:\n            - weight: 80\n              preference:\n                matchExpressions:\n                  - key: topology.kubernetes.io/zone\n                    operator: In\n                    values:\n                      - ap-southeast-1a\n                      - ap-southeast-1b\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6"
+    },
+    {
+      "path": "spec.template.spec.affinity.podAntiAffinity",
+      "type": "Object",
+      "description": "Pod 反亲和性用于避免相同微服务副本扎堆到同一主机或同一可用区。对面向外部流量的核心服务，建议至少按 hostname 打散，跨可用区场景再增加 zone 维度，降低单机或单 AZ 故障带来的容量损失。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      affinity:\n        podAntiAffinity:\n          preferredDuringSchedulingIgnoredDuringExecution:\n            - weight: 100\n              podAffinityTerm:\n                labelSelector:\n                  matchLabels:\n                    app.kubernetes.io/name: order-service\n                topologyKey: kubernetes.io/hostname\n            - weight: 90\n              podAffinityTerm:\n                labelSelector:\n                  matchLabels:\n                    app.kubernetes.io/name: order-service\n                topologyKey: topology.kubernetes.io/zone\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6"
+    },
+    {
+      "path": "spec.template.spec.topologySpreadConstraints",
+      "type": "[]Object",
+      "description": "拓扑打散约束可在 zone、hostname 等拓扑域内保持副本均衡。对大促、高并发入口服务很重要，因为它比单纯的反亲和性更容易量化容量分布，避免某个节点或某个 AZ 过热。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 6\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      topologySpreadConstraints:\n        - maxSkew: 1\n          topologyKey: topology.kubernetes.io/zone\n          whenUnsatisfiable: DoNotSchedule\n          labelSelector:\n            matchLabels:\n              app.kubernetes.io/name: order-service\n        - maxSkew: 1\n          topologyKey: kubernetes.io/hostname\n          whenUnsatisfiable: ScheduleAnyway\n          labelSelector:\n            matchLabels:\n              app.kubernetes.io/name: order-service\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6"
+    },
+    {
+      "path": "spec.template.spec.securityContext",
+      "type": "Object",
+      "description": "Pod 级安全上下文。用于统一设定 runAsUser、runAsGroup、fsGroup 等参数，适合需要共享卷权限控制或统一非 root 运行策略的微服务。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: file-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: file-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: file-service\n    spec:\n      securityContext:\n        runAsUser: 10001\n        runAsGroup: 10001\n        fsGroup: 10001\n      containers:\n        - name: file-service\n          image: registry.example.com/content/file-service:5.2.0"
+    },
+    {
+      "path": "spec.template.spec.securityContext.fsGroup",
+      "type": "integer",
+      "description": "Pod 共享卷文件组。对于需要多个进程共同访问挂载卷、且卷内文件权限受组控制的场景，fsGroup 是最常见的生产做法。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: file-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: file-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: file-service\n    spec:\n      securityContext:\n        runAsUser: 10001\n        runAsGroup: 10001\n        fsGroup: 10001\n      containers:\n        - name: file-service\n          image: registry.example.com/content/file-service:5.2.0"
+    },
+    {
+      "path": "spec.template.spec.dnsPolicy",
+      "type": "string",
+      "description": "Pod 的 DNS 策略。普通业务 Pod 通常保持 ClusterFirst；若启用了 hostNetwork，则多数情况下需要切换到 ClusterFirstWithHostNet，避免解析异常。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: edge-agent\n  namespace: prod\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: edge-agent\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: edge-agent\n    spec:\n      hostNetwork: true\n      dnsPolicy: ClusterFirstWithHostNet\n      containers:\n        - name: edge-agent\n          image: registry.example.com/platform/edge-agent:2.3.1"
+    },
+    {
+      "path": "spec.template.spec.hostNetwork",
+      "type": "boolean",
+      "description": "是否使用宿主机网络。仅适合边缘网关、网络代理、主机级采集器等少数场景；普通微服务启用后会增加端口冲突和安全隔离复杂度。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: edge-gateway\n  namespace: prod\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: edge-gateway\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: edge-gateway\n    spec:\n      hostNetwork: true\n      dnsPolicy: ClusterFirstWithHostNet\n      containers:\n        - name: edge-gateway\n          image: registry.example.com/platform/edge-gateway:3.1.0"
+    },
+    {
+      "path": "spec.template.spec.priorityClassName",
+      "type": "string",
+      "description": "Pod 优先级类。适用于支付、订单、网关等关键链路微服务，在集群资源紧张时可以优先获得调度和保留能力，但应谨慎使用，避免全员“高优先级”。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 4\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      priorityClassName: app-critical\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6"
+    },
+    {
+      "path": "spec.template.spec.hostAliases",
+      "type": "[]Object",
+      "description": "为 Pod 追加静态 hosts 记录。生产上尽量优先使用 DNS 服务发现，仅在兼容遗留系统、外部固定地址或临时迁移阶段才建议使用 hostAliases。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: report-service\n  namespace: prod\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: report-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: report-service\n    spec:\n      hostAliases:\n        - ip: \"10.10.20.30\"\n          hostnames:\n            - \"legacy-report-db.internal\"\n      containers:\n        - name: report-service\n          image: registry.example.com/report/report-service:4.6.1"
+    },
+    {
+      "path": "spec.template.spec.dnsConfig",
+      "type": "Object",
+      "description": "自定义 DNS 解析配置。仅在默认集群 DNS 不能满足要求时使用，例如需要附加搜索域、备用 nameserver 或 resolver options；滥用会增加运维复杂度。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: report-service\n  namespace: prod\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: report-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: report-service\n    spec:\n      dnsPolicy: ClusterFirst\n      dnsConfig:\n        options:\n          - name: ndots\n            value: \"2\"\n      containers:\n        - name: report-service\n          image: registry.example.com/report/report-service:4.6.1"
+    },
+    {
+      "path": "spec.template.spec.containers[].command",
+      "type": "[]string",
+      "description": "覆盖镜像默认 ENTRYPOINT。生产上只有在需要注入启动前脚本、等待依赖、动态生成配置或兼容遗留镜像时才建议覆盖 command。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: report-service\n  namespace: prod\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: report-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: report-service\n    spec:\n      containers:\n        - name: report-service\n          image: registry.example.com/report/report-service:4.6.1\n          command:\n            - /bin/sh\n            - -c"
+    },
+    {
+      "path": "spec.template.spec.containers[].args",
+      "type": "[]string",
+      "description": "覆盖镜像默认 CMD。适合通过参数注入 JVM 启动逻辑、动态 profile 或包装后的启动脚本，优点是无需重建镜像即可在发布层调整运行参数。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: report-service\n  namespace: prod\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: report-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: report-service\n    spec:\n      containers:\n        - name: report-service\n          image: registry.example.com/report/report-service:4.6.1\n          command:\n            - /bin/sh\n            - -c\n          args:\n            - java ${JAVA_TOOL_OPTIONS} -jar /app/report-service.jar --spring.profiles.active=prod"
+    },
+    {
+      "path": "spec.template.spec.containers[].env[].valueFrom",
+      "type": "Object",
+      "description": "环境变量动态取值。常见来源包括 fieldRef（Pod IP、命名空间）、resourceFieldRef（资源限制）、configMapKeyRef 和 secretKeyRef，适合避免把运行时上下文写死在镜像里。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          env:\n            - name: POD_IP\n              valueFrom:\n                fieldRef:\n                  fieldPath: status.podIP\n            - name: POD_NAMESPACE\n              valueFrom:\n                fieldRef:\n                  fieldPath: metadata.namespace"
+    },
+    {
+      "path": "spec.template.spec.containers[].env[].valueFrom.fieldRef",
+      "type": "Object",
+      "description": "从 Pod 自身字段读取环境变量。生产上最常见的是注入 `status.podIP`、`metadata.namespace`、`metadata.name` 等运行时上下文，避免应用通过 API 再次查询自身元数据。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          env:\n            - name: POD_IP\n              valueFrom:\n                fieldRef:\n                  fieldPath: status.podIP\n            - name: POD_NAME\n              valueFrom:\n                fieldRef:\n                  fieldPath: metadata.name"
+    },
+    {
+      "path": "spec.template.spec.containers[].env[].valueFrom.resourceFieldRef",
+      "type": "Object",
+      "description": "从容器资源限制中读取值。适合把 CPU 或内存限制注入应用，用于动态计算线程池、堆大小或缓存容量，避免配置与资源配额脱节。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: account-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: account-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: account-service\n    spec:\n      containers:\n        - name: account-service\n          image: registry.example.com/iam/account-service:2.4.8\n          resources:\n            limits:\n              cpu: 1000m\n              memory: 2Gi\n          env:\n            - name: CONTAINER_MEMORY_LIMIT\n              valueFrom:\n                resourceFieldRef:\n                  containerName: account-service\n                  resource: limits.memory"
+    },
+    {
+      "path": "spec.template.spec.containers[].envFrom",
+      "type": "[]Object",
+      "description": "批量引入 ConfigMap 与 Secret 的环境变量。适合管理数据库地址、线程池、日志级别等多项配置，但建议把强约束、必须存在的关键变量改为显式 env，以便在字段级别进行审计和变更管理。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          envFrom:\n            - configMapRef:\n                name: order-service-config\n            - secretRef:\n                name: order-service-secret"
+    },
+    {
+      "path": "spec.template.spec.containers[].envFrom[].prefix",
+      "type": "string",
+      "description": "给 envFrom 批量导入的变量统一加前缀。适合把公共配置按模块做命名空间隔离，避免多个 ConfigMap/Secret 键名冲突。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          envFrom:\n            - prefix: APP_\n              configMapRef:\n                name: order-service-config"
+    },
+    {
+      "path": "spec.template.spec.containers[].resources",
+      "type": "Object",
+      "description": "容器资源请求与限制。针对 JVM 微服务，建议 requests 与 limits 保持一致以获得 Guaranteed QoS，并配合 JAVA_TOOL_OPTIONS 中的 -XX:MaxRAMPercentage 控制堆内存占比，避免容器内存已到上限时发生 OOMKilled。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          env:\n            - name: JAVA_TOOL_OPTIONS\n              value: '-XX:+UseContainerSupport -XX:InitialRAMPercentage=50.0 -XX:MaxRAMPercentage=70.0 -XX:MinRAMPercentage=50.0'\n          resources:\n            requests:\n              cpu: 1000m\n              memory: 2Gi\n            limits:\n              cpu: 1000m\n              memory: 2Gi"
+    },
+    {
+      "path": "spec.template.spec.containers[].volumeMounts[].subPath",
+      "type": "string",
+      "description": "只挂载卷中的单个文件或子目录。生产上很适合把 `application.yml`、`logback-spring.xml`、证书链等单个文件映射到固定路径，而不覆盖整个目录。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      volumes:\n        - name: app-config\n          configMap:\n            name: order-service-config\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          volumeMounts:\n            - name: app-config\n              mountPath: /app/config/application.yml\n              subPath: application.yml\n              readOnly: true"
+    },
+    {
+      "path": "spec.template.spec.containers[].lifecycle.preStop",
+      "type": "Object",
+      "description": "优雅停机钩子。对于接入注册中心、消息消费者或长连接的微服务，建议在 preStop 中预留注销与连接排空时间，并将 terminationGracePeriodSeconds 设置得比 sleep 更长，避免正在处理的请求被强制中断。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      terminationGracePeriodSeconds: 60\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          lifecycle:\n            preStop:\n              exec:\n                command:\n                  - /bin/sh\n                  - -c\n                  - sleep 25"
+    },
+    {
+      "path": "spec.template.spec.containers[].lifecycle.postStart",
+      "type": "Object",
+      "description": "容器启动后立即执行的钩子。适合执行缓存预热、目录初始化、证书复制或 sidecar 注册动作，但要确保逻辑短小且幂等，避免拖慢 Ready 时间。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: report-service\n  namespace: prod\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: report-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: report-service\n    spec:\n      containers:\n        - name: report-service\n          image: registry.example.com/report/report-service:4.6.1\n          lifecycle:\n            postStart:\n              exec:\n                command:\n                  - /bin/sh\n                  - -c\n                  - mkdir -p /app/work && echo warmup-ready"
+    },
+    {
+      "path": "spec.template.spec.containers[].startupProbe",
+      "type": "Object",
+      "description": "启动探针适合启动较慢的 Java 或 .NET 服务。它能在应用尚未完全启动时屏蔽 liveness/readiness 的误杀，特别适用于类路径庞大、预热时间较长、需要加载缓存或执行数据库迁移的服务。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          ports:\n            - name: http\n              containerPort: 8080\n          startupProbe:\n            httpGet:\n              path: /actuator/health/readiness\n              port: http\n            periodSeconds: 10\n            timeoutSeconds: 3\n            failureThreshold: 30"
+    },
+    {
+      "path": "spec.template.spec.containers[].startupProbe.failureThreshold",
+      "type": "integer",
+      "description": "启动探针失败阈值。对于启动慢的 Java、.NET 或大型缓存服务，这个值决定了冷启动窗口长度，应根据实际启动耗时留足缓冲。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          startupProbe:\n            httpGet:\n              path: /actuator/health/readiness\n              port: http\n            periodSeconds: 10\n            timeoutSeconds: 3\n            failureThreshold: 30"
+    },
+    {
+      "path": "spec.template.spec.containers[].livenessProbe",
+      "type": "Object",
+      "description": "存活探针用于判断进程是否已进入不可恢复状态。Spring Boot 建议接入 Actuator 的 /actuator/health/liveness，避免把数据库瞬时抖动或下游依赖异常误判为容器死亡。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          ports:\n            - name: http\n              containerPort: 8080\n          livenessProbe:\n            httpGet:\n              path: /actuator/health/liveness\n              port: http\n            initialDelaySeconds: 30\n            periodSeconds: 15\n            timeoutSeconds: 3\n            failureThreshold: 3"
+    },
+    {
+      "path": "spec.template.spec.containers[].livenessProbe.initialDelaySeconds",
+      "type": "integer",
+      "description": "存活探针首次延迟时间。设置过短容易在应用冷启动、JIT 预热、缓存加载或数据库连接初始化阶段误杀容器。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          livenessProbe:\n            httpGet:\n              path: /actuator/health/liveness\n              port: http\n            initialDelaySeconds: 30\n            periodSeconds: 15\n            timeoutSeconds: 3\n            failureThreshold: 3"
+    },
+    {
+      "path": "spec.template.spec.containers[].readinessProbe",
+      "type": "Object",
+      "description": "就绪探针决定 Pod 是否参与 Service 负载均衡。微服务生产场景建议指向 /actuator/health/readiness，只有当线程池、连接池、缓存和核心依赖均可服务时再放量，防止冷启动流量直接打满新实例。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          ports:\n            - name: http\n              containerPort: 8080\n          readinessProbe:\n            httpGet:\n              path: /actuator/health/readiness\n              port: http\n            initialDelaySeconds: 20\n            periodSeconds: 10\n            timeoutSeconds: 2\n            failureThreshold: 3\n            successThreshold: 1"
+    },
+    {
+      "path": "spec.template.spec.containers[].readinessProbe.successThreshold",
+      "type": "integer",
+      "description": "连续成功阈值。多数场景保持 1 即可；对偶发抖动较多、刚上线后短时间内可能 Ready/NotReady 波动的服务，可适当提高做去抖。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          readinessProbe:\n            httpGet:\n              path: /actuator/health/readiness\n              port: http\n            initialDelaySeconds: 20\n            periodSeconds: 10\n            timeoutSeconds: 2\n            failureThreshold: 3\n            successThreshold: 1"
+    },
+    {
+      "path": "spec.template.spec.containers[].securityContext",
+      "type": "Object",
+      "description": "容器级安全上下文。建议对普通微服务显式关闭提权、启用非 root 运行、去除 Linux capabilities，并配合只读根文件系统降低攻击面。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: account-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: account-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: account-service\n    spec:\n      containers:\n        - name: account-service\n          image: registry.example.com/iam/account-service:2.4.8\n          securityContext:\n            runAsNonRoot: true\n            allowPrivilegeEscalation: false\n            readOnlyRootFilesystem: true\n            capabilities:\n              drop:\n                - ALL"
+    },
+    {
+      "path": "spec.template.spec.containers[].securityContext.readOnlyRootFilesystem",
+      "type": "boolean",
+      "description": "只读根文件系统。适合大多数 12-factor 微服务，可迫使应用把临时文件写到 `emptyDir`、`/tmp` 或显式挂载目录中，减少运行时篡改风险。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: account-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: account-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: account-service\n    spec:\n      volumes:\n        - name: tmp\n          emptyDir: {}\n      containers:\n        - name: account-service\n          image: registry.example.com/iam/account-service:2.4.8\n          securityContext:\n            readOnlyRootFilesystem: true\n          volumeMounts:\n            - name: tmp\n              mountPath: /tmp"
+    },
+    {
+      "path": "spec.template.spec.volumes[]",
+      "type": "[]Object",
+      "description": "Pod 级卷定义。微服务生产实践中常把 application.yml、logback-spring.xml、信任证书链等通过 ConfigMap 或 Secret 以文件形式挂载，便于与应用默认配置区分，同时减少重建镜像次数。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          volumeMounts:\n            - name: app-config\n              mountPath: /app/config/application.yml\n              subPath: application.yml\n              readOnly: true\n      volumes:\n        - name: app-config\n          configMap:\n            name: order-service-config\n            items:\n              - key: application.yml\n                path: application.yml"
+    },
+    {
+      "path": "spec.template.spec.volumes[].emptyDir",
+      "type": "Object",
+      "description": "临时目录卷。适合缓存临时文件、解压产物、只读根文件系统场景下的 `/tmp` 或运行时工作目录，它的生命周期与 Pod 一致。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: account-service\n  namespace: prod\nspec:\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: account-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: account-service\n    spec:\n      volumes:\n        - name: tmp\n          emptyDir: {}\n      containers:\n        - name: account-service\n          image: registry.example.com/iam/account-service:2.4.8\n          volumeMounts:\n            - name: tmp\n              mountPath: /tmp"
+    },
+    {
+      "path": "spec.template.spec.volumes[].persistentVolumeClaim.claimName",
+      "type": "string",
+      "description": "引用现有 PVC。适合无状态服务少量持久化需求，如本地缓存、离线包、共享素材目录等，但要确认并发访问模式与生命周期设计。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: report-service\n  namespace: prod\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: report-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: report-service\n    spec:\n      volumes:\n        - name: report-data\n          persistentVolumeClaim:\n            claimName: report-shared-pvc\n      containers:\n        - name: report-service\n          image: registry.example.com/report/report-service:4.6.1\n          volumeMounts:\n            - name: report-data\n              mountPath: /data/report"
+    }
+  ],
+  "Service": [
+    {
+      "path": "metadata.annotations",
+      "type": "map[string]string",
+      "description": "Service 注解。LoadBalancer 或云平台集成场景中，常通过 annotations 指定内网/公网、LB 类型、健康检查、代理协议等能力。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: edge-gateway\n  namespace: prod\n  annotations:\n    service.beta.kubernetes.io/aws-load-balancer-type: \"nlb\"\n    service.beta.kubernetes.io/aws-load-balancer-internal: \"true\"\nspec:\n  type: LoadBalancer\n  selector:\n    app.kubernetes.io/name: edge-gateway\n  ports:\n    - name: http\n      port: 80\n      targetPort: http"
+    },
+    {
+      "path": "spec.type",
+      "type": "string",
+      "description": "Service 类型。集群内部服务默认使用 ClusterIP；若需要在边缘节点直接暴露端口，可使用 NodePort，但生产更推荐通过 Ingress 或云厂商负载均衡统一接入，减少暴露面。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  type: ClusterIP\n  selector:\n    app.kubernetes.io/name: order-service\n  ports:\n    - name: http\n      port: 80\n      targetPort: http\n      protocol: TCP"
+    },
+    {
+      "path": "spec.externalName",
+      "type": "string",
+      "description": "ExternalName 类型服务指向的外部域名。适合把集群外的 SaaS、托管数据库或遗留 HTTP 服务纳入统一服务发现，但它不提供端口转发与健康检查。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: fraud-api-external\n  namespace: prod\nspec:\n  type: ExternalName\n  externalName: fraud-api.external.example.com"
+    },
+    {
+      "path": "spec.loadBalancerClass",
+      "type": "string",
+      "description": "指定由哪类负载均衡实现处理该 Service。生产多 LB 控制器共存时很有用，例如同时存在云厂商 LB 和自建 BGP LB 时进行精确选择。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: edge-gateway\n  namespace: prod\nspec:\n  type: LoadBalancer\n  loadBalancerClass: service.k8s.aws/nlb\n  selector:\n    app.kubernetes.io/name: edge-gateway\n  ports:\n    - name: https\n      port: 443\n      targetPort: https"
+    },
+    {
+      "path": "spec.clusterIP",
+      "type": "string",
+      "description": "ClusterIP 为 Service 的虚拟访问地址；当设置为 None 时表示 Headless Service，常用于 StatefulSet 让客户端直接感知到各个 Pod 的稳定 DNS 名称，例如 redis-cluster-0.redis-cluster-headless.prod.svc。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: redis-cluster-headless\n  namespace: prod\nspec:\n  clusterIP: None\n  publishNotReadyAddresses: true\n  selector:\n    app.kubernetes.io/name: redis-cluster\n  ports:\n    - name: redis\n      port: 6379\n      targetPort: redis"
+    },
+    {
+      "path": "spec.publishNotReadyAddresses",
+      "type": "boolean",
+      "description": "是否把未 Ready 的 Pod 地址也发布到 Endpoints。通常与 Headless Service 配合 StatefulSet 使用，便于 Redis、Kafka、ZooKeeper 等在初始化阶段完成成员发现。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: redis-cluster-headless\n  namespace: prod\nspec:\n  clusterIP: None\n  publishNotReadyAddresses: true\n  selector:\n    app.kubernetes.io/name: redis-cluster\n  ports:\n    - name: redis\n      port: 6379\n      targetPort: redis"
+    },
+    {
+      "path": "spec.ipFamilyPolicy",
+      "type": "string",
+      "description": "双栈策略。对同时支持 IPv4 与 IPv6 的集群，可使用 PreferDualStack 或 RequireDualStack；若业务和基础设施仍以 IPv4 为主，则保持 SingleStack 更稳妥。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  type: ClusterIP\n  ipFamilyPolicy: PreferDualStack\n  ipFamilies:\n    - IPv4\n    - IPv6\n  selector:\n    app.kubernetes.io/name: order-service\n  ports:\n    - name: http\n      port: 80\n      targetPort: http"
+    },
+    {
+      "path": "spec.ipFamilies",
+      "type": "[]string",
+      "description": "显式声明 IP 协议族顺序。在双栈集群中，这能帮助平台决定主族与次族；如果网络设备、WAF 或客户端尚未完全支持 IPv6，建议优先 IPv4。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  ipFamilyPolicy: PreferDualStack\n  ipFamilies:\n    - IPv4\n    - IPv6\n  selector:\n    app.kubernetes.io/name: order-service\n  ports:\n    - name: http\n      port: 80\n      targetPort: http"
+    },
+    {
+      "path": "spec.selector",
+      "type": "map[string]string",
+      "description": "Service 通过 selector 选择后端 Pod。生产上必须与 Deployment 或 StatefulSet 的稳定标签精确对齐，避免把灰度、Job 或其它环境的 Pod 误纳入流量池。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  selector:\n    app.kubernetes.io/name: order-service\n    app.kubernetes.io/component: api\n  ports:\n    - name: http\n      port: 80\n      targetPort: http"
+    },
+    {
+      "path": "spec.sessionAffinity",
+      "type": "string",
+      "description": "会话亲和性。对于登录态仍依赖内存会话、WebSocket 长连接或短时间内需要访问本地缓存的应用，可启用 ClientIP 保持一段时间的会话粘性，但更推荐业务层无状态化。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: checkout-service\n  namespace: prod\nspec:\n  type: ClusterIP\n  sessionAffinity: ClientIP\n  sessionAffinityConfig:\n    clientIP:\n      timeoutSeconds: 10800\n  selector:\n    app.kubernetes.io/name: checkout-service\n  ports:\n    - name: http\n      port: 80\n      targetPort: http"
+    },
+    {
+      "path": "spec.sessionAffinityConfig.clientIP.timeoutSeconds",
+      "type": "integer",
+      "description": "ClientIP 会话保持时间，单位秒。时间过短会导致频繁换 Pod，过长则可能让热点用户长期粘在单实例上；生产常按 30 分钟到 3 小时结合业务会话时长来配置。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: checkout-service\n  namespace: prod\nspec:\n  type: ClusterIP\n  sessionAffinity: ClientIP\n  sessionAffinityConfig:\n    clientIP:\n      timeoutSeconds: 3600\n  selector:\n    app.kubernetes.io/name: checkout-service\n  ports:\n    - name: http\n      port: 80\n      targetPort: http"
+    },
+    {
+      "path": "spec.externalTrafficPolicy",
+      "type": "string",
+      "description": "NodePort 或 LoadBalancer 的外部流量策略。若需要保留真实客户端源 IP 用于审计、风控或限流，可设为 Local；但要确保每个接入节点上都有健康后端，否则会出现部分节点丢流量。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: edge-gateway\n  namespace: prod\nspec:\n  type: NodePort\n  externalTrafficPolicy: Local\n  selector:\n    app.kubernetes.io/name: edge-gateway\n  ports:\n    - name: http\n      port: 80\n      targetPort: http\n      nodePort: 32080\n    - name: https\n      port: 443\n      targetPort: https\n      nodePort: 32443"
+    },
+    {
+      "path": "spec.internalTrafficPolicy",
+      "type": "string",
+      "description": "集群内部流量策略。设置为 Local 时，Pod 会优先访问本节点上的后端，适合日志、监控代理、节点本地缓存等场景，可降低跨节点网络开销；业务服务使用前要先评估节点上副本分布是否均衡。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: log-agent\n  namespace: observability\nspec:\n  type: ClusterIP\n  internalTrafficPolicy: Local\n  selector:\n    app.kubernetes.io/name: log-agent\n  ports:\n    - name: http\n      port: 2020\n      targetPort: http"
+    },
+    {
+      "path": "spec.externalIPs",
+      "type": "[]string",
+      "description": "把外部静态 IP 绑定到 Service。适合特殊网络架构或传统设备路由接入，但要同步确认上游交换机、ARP、路由和安全策略，避免黑洞流量。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: legacy-gateway\n  namespace: prod\nspec:\n  type: ClusterIP\n  externalIPs:\n    - 10.20.30.40\n  selector:\n    app.kubernetes.io/name: legacy-gateway\n  ports:\n    - name: http\n      port: 80\n      targetPort: http"
+    },
+    {
+      "path": "spec.loadBalancerSourceRanges",
+      "type": "[]string",
+      "description": "限制可访问 LoadBalancer 的来源网段。公网暴露接口建议与 WAF、堡垒机、办公网出口或专线源地址配合，避免对全网开放管理接口。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: admin-gateway\n  namespace: prod\nspec:\n  type: LoadBalancer\n  loadBalancerSourceRanges:\n    - 203.0.113.0/24\n    - 198.51.100.10/32\n  selector:\n    app.kubernetes.io/name: admin-gateway\n  ports:\n    - name: https\n      port: 443\n      targetPort: https"
+    },
+    {
+      "path": "spec.healthCheckNodePort",
+      "type": "integer",
+      "description": "LoadBalancer 使用 Local 流量策略时的健康检查端口。部分云厂商会要求显式保留该端口用于探测节点本地是否存在健康后端。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: edge-gateway\n  namespace: prod\nspec:\n  type: LoadBalancer\n  externalTrafficPolicy: Local\n  healthCheckNodePort: 32081\n  selector:\n    app.kubernetes.io/name: edge-gateway\n  ports:\n    - name: https\n      port: 443\n      targetPort: https"
+    },
+    {
+      "path": "spec.allocateLoadBalancerNodePorts",
+      "type": "boolean",
+      "description": "是否为 LoadBalancer 自动分配 NodePort。若当前云负载均衡实现并不依赖 NodePort，可关闭该选项以减少额外暴露端口。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: internal-api\n  namespace: prod\nspec:\n  type: LoadBalancer\n  allocateLoadBalancerNodePorts: false\n  selector:\n    app.kubernetes.io/name: internal-api\n  ports:\n    - name: https\n      port: 443\n      targetPort: https"
+    },
+    {
+      "path": "spec.ports[]",
+      "type": "[]ServicePort",
+      "description": "服务端口列表。生产建议为端口命名并区分 http、grpc、metrics 等协议；targetPort 优先引用容器端口名而不是硬编码数字，减少应用端口调整时联动修改的风险。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  type: ClusterIP\n  selector:\n    app.kubernetes.io/name: order-service\n  ports:\n    - name: http\n      port: 80\n      targetPort: http\n      protocol: TCP\n      appProtocol: http\n    - name: metrics\n      port: 9090\n      targetPort: metrics\n      protocol: TCP\n      appProtocol: http"
+    },
+    {
+      "path": "spec.ports[].appProtocol",
+      "type": "string",
+      "description": "应用层协议提示。虽然多数核心转发逻辑仍由 port/protocol 决定，但 appProtocol 对网关、服务网格、平台识别 HTTP 或 gRPC 更友好。",
+      "demo": "apiVersion: v1\nkind: Service\nmetadata:\n  name: payment-grpc\n  namespace: prod\nspec:\n  type: ClusterIP\n  selector:\n    app.kubernetes.io/name: payment-grpc\n  ports:\n    - name: grpc\n      port: 9090\n      targetPort: grpc\n      protocol: TCP\n      appProtocol: grpc"
+    }
+  ],
+  "Ingress": [
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/enable-cors",
+      "type": "string",
+      "description": "Nginx Ingress 的跨域控制。生产上不要简单使用通配符 *，应明确 allow-origin、allow-methods、allow-headers 与 credentials 策略，防止浏览器端越权访问。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: portal-api\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/enable-cors: 'true'\n    nginx.ingress.kubernetes.io/cors-allow-origin: 'https://portal.example.com,https://admin.example.com'\n    nginx.ingress.kubernetes.io/cors-allow-methods: 'GET,POST,PUT,DELETE,OPTIONS'\n    nginx.ingress.kubernetes.io/cors-allow-headers: 'Authorization,Content-Type,X-Request-ID'\n    nginx.ingress.kubernetes.io/cors-allow-credentials: 'true'\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /portal\n            pathType: Prefix\n            backend:\n              service:\n                name: portal-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/cors-allow-origin",
+      "type": "string",
+      "description": "明确允许的前端来源。生产环境不要直接使用 `*`，应按域名白名单配置门户、管理台、小程序网关等合法来源。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: portal-api\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/enable-cors: \"true\"\n    nginx.ingress.kubernetes.io/cors-allow-origin: \"https://portal.example.com,https://admin.example.com\"\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /portal\n            pathType: Prefix\n            backend:\n              service:\n                name: portal-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/cors-allow-methods",
+      "type": "string",
+      "description": "允许的跨域 HTTP 方法集合。建议按实际接口需求收敛，不要无脑放开所有方法，减少浏览器侧攻击面。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: portal-api\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/enable-cors: \"true\"\n    nginx.ingress.kubernetes.io/cors-allow-methods: \"GET,POST,PUT,DELETE,OPTIONS\"\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /portal\n            pathType: Prefix\n            backend:\n              service:\n                name: portal-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/cors-allow-headers",
+      "type": "string",
+      "description": "允许的跨域请求头。对前后端分离微服务，通常至少要放行 Authorization、Content-Type、X-Request-ID 等头部。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: portal-api\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/enable-cors: \"true\"\n    nginx.ingress.kubernetes.io/cors-allow-headers: \"Authorization,Content-Type,X-Request-ID\"\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /portal\n            pathType: Prefix\n            backend:\n              service:\n                name: portal-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/cors-allow-credentials",
+      "type": "string",
+      "description": "是否允许浏览器跨域请求携带 Cookie 或认证凭证。启用后必须与精确的 allow-origin 搭配，不能和通配符来源同时使用。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: portal-api\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/enable-cors: \"true\"\n    nginx.ingress.kubernetes.io/cors-allow-origin: \"https://portal.example.com\"\n    nginx.ingress.kubernetes.io/cors-allow-credentials: \"true\"\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /portal\n            pathType: Prefix\n            backend:\n              service:\n                name: portal-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/proxy-body-size",
+      "type": "string",
+      "description": "单请求体大小限制。处理图片上传、报表导入或批量接口时，需要同步调大 proxy-body-size，并结合应用本身的 multipart 或 HTTP 请求限制，避免网关和应用层配置不一致。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: file-upload\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/proxy-body-size: 20m\n    nginx.ingress.kubernetes.io/proxy-request-buffering: 'off'\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: upload.prod.example.com\n      http:\n        paths:\n          - path: /files\n            pathType: Prefix\n            backend:\n              service:\n                name: file-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/ssl-redirect",
+      "type": "string",
+      "description": "是否强制把 HTTP 跳转到 HTTPS。生产域名只要已经配置 TLS，通常都应开启该选项，避免出现明文访问入口。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: api-gateway\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/ssl-redirect: \"true\"\nspec:\n  ingressClassName: nginx\n  tls:\n    - hosts:\n        - api.prod.example.com\n      secretName: prod-example-com-tls\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /\n            pathType: Prefix\n            backend:\n              service:\n                name: edge-gateway\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/use-regex",
+      "type": "string",
+      "description": "启用正则路径匹配。常与 rewrite-target 搭配，用于把统一网关路径重写到后端真实路径，但要确保路径表达式经过充分测试。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: commerce-rewrite\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/use-regex: \"true\"\n    nginx.ingress.kubernetes.io/rewrite-target: /$2\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /order(/|$)(.*)\n            pathType: ImplementationSpecific\n            backend:\n              service:\n                name: order-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/rewrite-target",
+      "type": "string",
+      "description": "路径重写规则。网关聚合多个后端服务时常借助 rewrite-target 把统一入口路径转写为应用内部实际路径，配合 use-regex 可以实现较复杂的 URI 转换，但应谨慎测试避免误改请求路径。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: commerce-rewrite\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/use-regex: 'true'\n    nginx.ingress.kubernetes.io/rewrite-target: /$2\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /order(/|$)(.*)\n            pathType: ImplementationSpecific\n            backend:\n              service:\n                name: order-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/proxy-connect-timeout",
+      "type": "string",
+      "description": "与上游服务建立连接的超时时间。对于连接池紧张、网络链路复杂或跨网段访问的后端，应避免设置过低以导致偶发 504。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: payment-api\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/proxy-connect-timeout: \"5\"\n    nginx.ingress.kubernetes.io/proxy-send-timeout: \"60\"\n    nginx.ingress.kubernetes.io/proxy-read-timeout: \"60\"\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: payment.prod.example.com\n      http:\n        paths:\n          - path: /\n            pathType: Prefix\n            backend:\n              service:\n                name: payment-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/proxy-send-timeout",
+      "type": "string",
+      "description": "向后端发送请求体的超时时间。适合大报文上传、导入接口或上游消费速率较慢的业务，避免还没把请求完整发送出去就被中断。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: upload-api\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/proxy-send-timeout: \"120\"\n    nginx.ingress.kubernetes.io/proxy-read-timeout: \"120\"\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: upload.prod.example.com\n      http:\n        paths:\n          - path: /files\n            pathType: Prefix\n            backend:\n              service:\n                name: file-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/proxy-read-timeout",
+      "type": "string",
+      "description": "上游读写超时。支付、报表、导出类接口的响应时间通常长于普通 CRUD，需要在 Ingress 层适度调大 proxy-connect-timeout、proxy-send-timeout、proxy-read-timeout，避免还未超出应用 SLA 就被网关提前断开。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: report-api\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/proxy-connect-timeout: '5'\n    nginx.ingress.kubernetes.io/proxy-send-timeout: '60'\n    nginx.ingress.kubernetes.io/proxy-read-timeout: '60'\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: report.prod.example.com\n      http:\n        paths:\n          - path: /\n            pathType: Prefix\n            backend:\n              service:\n                name: report-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/whitelist-source-range",
+      "type": "string",
+      "description": "基于源地址白名单限制访问。适合仅开放给办公网、堡垒机、专线出口或管理平台的后台接口，比应用层名单更早拦截请求。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: admin-api\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/whitelist-source-range: \"203.0.113.0/24,198.51.100.10/32\"\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: admin.prod.example.com\n      http:\n        paths:\n          - path: /\n            pathType: Prefix\n            backend:\n              service:\n                name: admin-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/backend-protocol",
+      "type": "string",
+      "description": "声明后端协议类型。gRPC、HTTPS 后端通常需要明确设置 backend-protocol，否则会被当作普通 HTTP 转发，导致请求失败。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: payment-grpc\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/backend-protocol: \"GRPC\"\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: grpc.prod.example.com\n      http:\n        paths:\n          - path: /\n            pathType: Prefix\n            backend:\n              service:\n                name: payment-grpc\n                port:\n                  number: 9090"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/proxy-buffer-size",
+      "type": "string",
+      "description": "增大响应头缓冲区。对携带超长 JWT、OIDC 认证头或复杂网关透传头的系统很常见，可避免 `upstream sent too big header` 错误。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: portal-api\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/proxy-buffer-size: \"16k\"\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /portal\n            pathType: Prefix\n            backend:\n              service:\n                name: portal-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/proxy-request-buffering",
+      "type": "string",
+      "description": "是否开启请求体缓冲。文件上传、大流式请求或某些代理直通场景常关闭该选项，减少大请求在网关侧完整落盘缓冲。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: file-upload\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/proxy-body-size: 20m\n    nginx.ingress.kubernetes.io/proxy-request-buffering: \"off\"\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: upload.prod.example.com\n      http:\n        paths:\n          - path: /files\n            pathType: Prefix\n            backend:\n              service:\n                name: file-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/enable-access-log",
+      "type": "string",
+      "description": "是否启用访问日志。生产环境通常默认开启，但对高 QPS、内部批处理或噪声流量很大的路径也可能关闭以降低日志成本。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: portal-api\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/enable-access-log: \"true\"\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /portal\n            pathType: Prefix\n            backend:\n              service:\n                name: portal-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/canary",
+      "type": "string",
+      "description": "开启灰度 Ingress。配合 canary-weight、canary-by-header 或 canary-by-cookie，可以在网关层做蓝绿/灰度验证，减少一次性切流风险。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: order-api-canary\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/canary: \"true\"\n    nginx.ingress.kubernetes.io/canary-weight: \"10\"\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /order\n            pathType: Prefix\n            backend:\n              service:\n                name: order-service-canary\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.nginx.ingress.kubernetes.io/canary-weight",
+      "type": "string",
+      "description": "按流量权重进行灰度。适合在不改客户端的前提下逐步把 1%、5%、10% 流量引导到新版本服务，观察稳定性后再逐步放量。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: order-api-canary\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/canary: \"true\"\n    nginx.ingress.kubernetes.io/canary-weight: \"10\"\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /order\n            pathType: Prefix\n            backend:\n              service:\n                name: order-service-canary\n                port:\n                  number: 80"
+    },
+    {
+      "path": "metadata.annotations.cert-manager.io/cluster-issuer",
+      "type": "string",
+      "description": "配合 cert-manager 自动签发和续期证书。生产建议使用独立的 ClusterIssuer 管理证书生命周期，减少手工替换证书的运维风险。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: public-api\n  namespace: prod\n  annotations:\n    cert-manager.io/cluster-issuer: letsencrypt-prod\n    nginx.ingress.kubernetes.io/ssl-redirect: \"true\"\nspec:\n  ingressClassName: nginx\n  tls:\n    - hosts:\n        - api.prod.example.com\n      secretName: prod-example-com-tls\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /\n            pathType: Prefix\n            backend:\n              service:\n                name: edge-gateway\n                port:\n                  number: 80"
+    },
+    {
+      "path": "spec.ingressClassName",
+      "type": "string",
+      "description": "IngressClass 用于指定由哪一个 Ingress Controller 处理资源。生产集群中常同时存在公网和内网 Ingress Controller，因此应显式设置 ingressClassName，避免被错误的控制器接管。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: api-gateway\n  namespace: prod\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /order\n            pathType: Prefix\n            backend:\n              service:\n                name: order-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "spec.defaultBackend",
+      "type": "Object",
+      "description": "默认后端。当请求未命中任何 host/path 规则时转发到兜底服务，适合统一返回 404 页面、维护页或审计信息。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: gateway-default\n  namespace: prod\nspec:\n  ingressClassName: nginx\n  defaultBackend:\n    service:\n      name: default-404-service\n      port:\n        number: 80\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /order\n            pathType: Prefix\n            backend:\n              service:\n                name: order-service\n                port:\n                  number: 80"
+    },
+    {
+      "path": "spec.tls",
+      "type": "[]IngressTLS",
+      "description": "TLS 终止配置。生产环境必须启用 HTTPS，并让证书 Secret 与域名严格对应；若接入 cert-manager，可通过自动续期减少证书到期风险。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: api-gateway\n  namespace: prod\n  annotations:\n    nginx.ingress.kubernetes.io/ssl-redirect: 'true'\nspec:\n  ingressClassName: nginx\n  tls:\n    - hosts:\n        - api.prod.example.com\n      secretName: prod-example-com-tls\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /\n            pathType: Prefix\n            backend:\n              service:\n                name: edge-gateway\n                port:\n                  number: 80"
+    },
+    {
+      "path": "spec.rules[]",
+      "type": "[]IngressRule",
+      "description": "Ingress 路由规则。生产建议按域名和业务边界拆分规则，并用 Prefix 路由承接大多数微服务接口；如需正则，请确认 pathType 与注解组合是否被当前 Nginx Ingress 版本支持。",
+      "demo": "apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: api-gateway\n  namespace: prod\nspec:\n  ingressClassName: nginx\n  rules:\n    - host: api.prod.example.com\n      http:\n        paths:\n          - path: /order\n            pathType: Prefix\n            backend:\n              service:\n                name: order-service\n                port:\n                  number: 80\n          - path: /inventory\n            pathType: Prefix\n            backend:\n              service:\n                name: inventory-service\n                port:\n                  number: 80\n          - path: /payment\n            pathType: Prefix\n            backend:\n              service:\n                name: payment-service\n                port:\n                  number: 80"
+    }
+  ],
+  "ConfigMap": [
+    {
+      "path": "metadata.annotations",
+      "type": "map[string]string",
+      "description": "ConfigMap 注解。适合记录配置版本、变更批次、配置来源系统或 Git 提交号，便于排查配置漂移和回溯发布。",
+      "demo": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: order-service-config\n  namespace: prod\n  annotations:\n    config.kubernetes.io/version: \"2026-03-28-01\"\n    config.kubernetes.io/source: \"gitops\"\ndata:\n  SPRING_PROFILES_ACTIVE: prod"
+    },
+    {
+      "path": "immutable",
+      "type": "boolean",
+      "description": "ConfigMap 是否不可变。对于版本化配置，启用 immutable 可以防止线上配置被临时手改，并减少 kube-apiserver 与 kubelet 的监听开销；变更时通过新名称或新版本发布更安全。",
+      "demo": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: order-service-config-v20260328\n  namespace: prod\nimmutable: true\ndata:\n  SPRING_PROFILES_ACTIVE: prod\n  LOG_LEVEL_ROOT: INFO"
+    },
+    {
+      "path": "data.application.yml",
+      "type": "map[string]string",
+      "description": "ConfigMap 的 data 区域可保存 application.yml 等文本配置。生产建议把线程池、连接池、日志级别、超时策略等非敏感参数外置，同时保持与镜像内默认配置的清晰边界。",
+      "demo": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: order-service-config\n  namespace: prod\ndata:\n  application.yml: |\n    server:\n      port: 8080\n    spring:\n      application:\n        name: order-service\n      datasource:\n        hikari:\n          maximum-pool-size: 50\n          minimum-idle: 10\n          connection-timeout: 3000\n    management:\n      endpoints:\n        web:\n          exposure:\n            include: health,prometheus\n      endpoint:\n        health:\n          probes:\n            enabled: true"
+    },
+    {
+      "path": "binaryData",
+      "type": "map[string]string",
+      "description": "二进制配置内容。适合 base64 编码后的 truststore、license 文件、二进制模板等非敏感数据；若涉及敏感信息，仍应使用 Secret。",
+      "demo": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: order-service-binary-config\n  namespace: prod\nbinaryData:\n  truststore.jks: BASE64_ENCODED_JKS_CONTENT"
+    },
+    {
+      "path": "spec.template.spec.volumes[].configMap",
+      "type": "Object",
+      "description": "通过 Pod 卷挂载 ConfigMap。适合 application.yml、证书信任链、模板文件等以文件形式读取的配置，且对 Java 应用更友好，因为 Spring Boot 可以直接从固定路径加载外部配置文件。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      volumes:\n        - name: app-config\n          configMap:\n            name: order-service-config\n            items:\n              - key: application.yml\n                path: application.yml\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6"
+    },
+    {
+      "path": "spec.template.spec.volumes[].configMap.items[]",
+      "type": "[]KeyToPath",
+      "description": "精确选择 ConfigMap 中的部分键进行挂载。生产上建议只挂应用实际需要的文件，避免把无关配置全部暴露进容器。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      volumes:\n        - name: app-config\n          configMap:\n            name: order-service-config\n            items:\n              - key: application.yml\n                path: application.yml\n              - key: logback-spring.xml\n                path: logback-spring.xml"
+    },
+    {
+      "path": "spec.template.spec.volumes[].configMap.optional",
+      "type": "boolean",
+      "description": "声明挂载的 ConfigMap 是否可选。对必须存在的核心配置建议保持 false，让 Pod 在配置缺失时直接失败，避免带病启动。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: report-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: report-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: report-service\n    spec:\n      volumes:\n        - name: report-config\n          configMap:\n            name: report-service-config\n            optional: false\n      containers:\n        - name: report-service\n          image: registry.example.com/report/report-service:4.6.1"
+    },
+    {
+      "path": "spec.template.spec.containers[].volumeMounts[]",
+      "type": "[]VolumeMount",
+      "description": "卷挂载定义。生产建议使用 subPath 将单个配置文件精确挂载到应用读取路径，并标记 readOnly: true，防止容器内进程误改配置。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      volumes:\n        - name: app-config\n          configMap:\n            name: order-service-config\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          volumeMounts:\n            - name: app-config\n              mountPath: /app/config/application.yml\n              subPath: application.yml\n              readOnly: true"
+    },
+    {
+      "path": "spec.template.spec.containers[].envFrom[].configMapRef",
+      "type": "Object",
+      "description": "通过 envFrom 一次性把 ConfigMap 转为环境变量。适合 key-value 类配置，例如开关、限流阈值、日志级别等；如果应用依赖某个键必须存在，建议改为显式 env + configMapKeyRef。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          envFrom:\n            - configMapRef:\n                name: order-service-config"
+    },
+    {
+      "path": "spec.template.spec.containers[].envFrom[].prefix",
+      "type": "string",
+      "description": "envFrom 前缀。适合把同一个 ConfigMap 中的公共键统一加上业务前缀，避免多个来源同时导入时发生键名冲突。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          envFrom:\n            - prefix: APP_\n              configMapRef:\n                name: order-service-config"
+    },
+    {
+      "path": "spec.template.spec.containers[].envFrom[].configMapRef.optional",
+      "type": "boolean",
+      "description": "ConfigMap 是否可选。对必须存在的核心配置建议保持 false，让配置缺失时 Pod 直接失败，而不是带着默认值错误运行。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: report-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: report-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: report-service\n    spec:\n      containers:\n        - name: report-service\n          image: registry.example.com/report/report-service:4.6.1\n          envFrom:\n            - configMapRef:\n                name: report-service-config\n                optional: false"
+    },
+    {
+      "path": "spec.template.spec.containers[].env[].valueFrom.configMapKeyRef",
+      "type": "Object",
+      "description": "从 ConfigMap 中按键读取环境变量。相较 envFrom，更适合关键参数的显式声明，可提高可读性、审计性和变更控制能力。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          env:\n            - name: SPRING_PROFILES_ACTIVE\n              valueFrom:\n                configMapKeyRef:\n                  name: order-service-config\n                  key: SPRING_PROFILES_ACTIVE"
+    },
+    {
+      "path": "spec.template.spec.containers[].env[]",
+      "type": "[]EnvVar",
+      "description": "显式环境变量引用 ConfigMap 中的单个键。适合对关键配置做细粒度控制，如 JVM 参数、线程池开关、日志级别；显式声明后更便于代码审查和审计。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          env:\n            - name: SPRING_PROFILES_ACTIVE\n              valueFrom:\n                configMapKeyRef:\n                  name: order-service-config\n                  key: SPRING_PROFILES_ACTIVE\n            - name: LOG_LEVEL_ROOT\n              valueFrom:\n                configMapKeyRef:\n                  name: order-service-config\n                  key: LOG_LEVEL_ROOT"
+    }
+  ],
+  "Secret": [
+    {
+      "path": "metadata.annotations",
+      "type": "map[string]string",
+      "description": "Secret 注解。生产上常记录轮转版本、密钥来源、同步控制器状态或安全域信息，便于排查密钥更新和审计链路。",
+      "demo": "apiVersion: v1\nkind: Secret\nmetadata:\n  name: order-service-secret\n  namespace: prod\n  annotations:\n    secret.kubernetes.io/rotation-version: \"2026-03-28-01\"\n    external-secrets.io/managed-by: \"eso-prod\"\ntype: Opaque\nstringData:\n  DB_PASSWORD: vault://prod/order/db/password"
+    },
+    {
+      "path": "immutable",
+      "type": "boolean",
+      "description": "Secret 是否不可变。对于镜像拉取凭据、固定证书链或版本化发布密钥，启用 immutable 可以减少误改；若需要轮转，则通过新 Secret 名称发布更安全。",
+      "demo": "apiVersion: v1\nkind: Secret\nmetadata:\n  name: regcred-prod-v20260328\n  namespace: prod\nimmutable: true\ntype: kubernetes.io/dockerconfigjson\ndata:\n  .dockerconfigjson: BASE64_ENCODED_DOCKER_AUTH_JSON"
+    },
+    {
+      "path": "type",
+      "type": "string",
+      "description": "Secret 类型。微服务最常见的是 Opaque；镜像拉取凭据使用 kubernetes.io/dockerconfigjson；TLS 证书使用 kubernetes.io/tls。生产上应根据用途显式设置 type，便于平台和控制器识别。",
+      "demo": "apiVersion: v1\nkind: Secret\nmetadata:\n  name: order-service-secret\n  namespace: prod\ntype: Opaque\nstringData:\n  DB_USERNAME: order_app\n  DB_PASSWORD: replace-with-vault-managed-secret\n  REDIS_PASSWORD: replace-with-vault-managed-secret"
+    },
+    {
+      "path": "stringData",
+      "type": "map[string]string",
+      "description": "stringData 适合在 CI/CD 或 GitOps 渲染阶段直接写明明文键值，Kubernetes 会自动转成 base64 编码的 data。生产更推荐由 External Secrets、Vault 或密钥管理系统动态下发，而不是人工维护明文。",
+      "demo": "apiVersion: v1\nkind: Secret\nmetadata:\n  name: payment-service-secret\n  namespace: prod\ntype: Opaque\nstringData:\n  DB_USERNAME: payment_app\n  DB_PASSWORD: vault://prod/payment/db/password\n  MQ_PASSWORD: vault://prod/payment/mq/password"
+    },
+    {
+      "path": "data",
+      "type": "map[string]string",
+      "description": "data 区域保存 base64 编码后的值。它不是加密，仅仅是编码，因此仍需配合 etcd 加密、RBAC 最小权限和 Secret 管理平台；dockerconfigjson 与 tls 类型也都依赖 data 存储内容。",
+      "demo": "apiVersion: v1\nkind: Secret\nmetadata:\n  name: regcred-prod\n  namespace: prod\ntype: kubernetes.io/dockerconfigjson\ndata:\n  .dockerconfigjson: BASE64_ENCODED_DOCKER_AUTH_JSON"
+    },
+    {
+      "path": "data..dockerconfigjson",
+      "type": "string",
+      "description": "私有镜像仓库认证数据。该字段仅用于 `kubernetes.io/dockerconfigjson` 类型 Secret，通常由 `kubectl create secret docker-registry` 或平台流水线自动生成。",
+      "demo": "apiVersion: v1\nkind: Secret\nmetadata:\n  name: regcred-prod\n  namespace: prod\ntype: kubernetes.io/dockerconfigjson\ndata:\n  .dockerconfigjson: BASE64_ENCODED_DOCKER_AUTH_JSON"
+    },
+    {
+      "path": "data.tls.crt / data.tls.key",
+      "type": "map[string]string",
+      "description": "TLS Secret 的证书与私钥字段。通常由 cert-manager 自动维护，Ingress 只引用 secretName 即可；如手工创建，证书链、域名 SAN 与更新周期都需要纳入运维流程。",
+      "demo": "apiVersion: v1\nkind: Secret\nmetadata:\n  name: prod-example-com-tls\n  namespace: prod\ntype: kubernetes.io/tls\ndata:\n  tls.crt: BASE64_ENCODED_CERT_CHAIN\n  tls.key: BASE64_ENCODED_PRIVATE_KEY"
+    },
+    {
+      "path": "spec.template.spec.volumes[].secret",
+      "type": "Object",
+      "description": "把 Secret 作为卷挂载，适合客户端证书、私钥、公钥、JKS 或 PEM 文件等文件型敏感材料。生产务必设置 readOnly，并与容器内应用的证书热更新策略一起设计。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      volumes:\n        - name: tls-material\n          secret:\n            secretName: order-service-client-cert\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          volumeMounts:\n            - name: tls-material\n              mountPath: /app/certs\n              readOnly: true"
+    },
+    {
+      "path": "spec.template.spec.volumes[].secret.items[]",
+      "type": "[]KeyToPath",
+      "description": "仅把 Secret 中需要的键投射为文件。适合只挂载 `tls.crt`、`tls.key`、`ca.crt` 等少数字段，降低容器内暴露面。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payment-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: payment-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: payment-service\n    spec:\n      volumes:\n        - name: tls-material\n          secret:\n            secretName: payment-client-cert\n            items:\n              - key: tls.crt\n                path: tls.crt\n              - key: tls.key\n                path: tls.key"
+    },
+    {
+      "path": "spec.template.spec.volumes[].secret.optional",
+      "type": "boolean",
+      "description": "声明 Secret 卷是否可选。对数据库密码、客户端证书、签名密钥这类关键材料建议保持 false，让启动期尽早失败而不是带病运行。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payment-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: payment-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: payment-service\n    spec:\n      volumes:\n        - name: tls-material\n          secret:\n            secretName: payment-client-cert\n            optional: false\n      containers:\n        - name: payment-service\n          image: registry.example.com/finance/payment-service:2.7.3"
+    },
+    {
+      "path": "spec.template.spec.containers[].env[].valueFrom.secretKeyRef",
+      "type": "Object",
+      "description": "将敏感字段按键注入为环境变量。适用于数据库密码、第三方 Token、消息队列认证信息等少量关键值，优点是字段清晰、权限边界明确，缺点是应用重启前不会自动感知 Secret 内容变化。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: order-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: order-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: order-service\n    spec:\n      containers:\n        - name: order-service\n          image: registry.example.com/commerce/order-service:1.18.6\n          env:\n            - name: DB_PASSWORD\n              valueFrom:\n                secretKeyRef:\n                  name: order-service-secret\n                  key: DB_PASSWORD\n            - name: REDIS_PASSWORD\n              valueFrom:\n                secretKeyRef:\n                  name: order-service-secret\n                  key: REDIS_PASSWORD"
+    },
+    {
+      "path": "spec.template.spec.containers[].env[].valueFrom.secretKeyRef.optional",
+      "type": "boolean",
+      "description": "secretKeyRef 是否可选。对密码、AccessKey、签名密钥等关键值建议保持 false，保证配置缺失时直接阻止 Pod Ready。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payment-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: payment-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: payment-service\n    spec:\n      containers:\n        - name: payment-service\n          image: registry.example.com/finance/payment-service:2.7.3\n          env:\n            - name: MQ_PASSWORD\n              valueFrom:\n                secretKeyRef:\n                  name: payment-service-secret\n                  key: MQ_PASSWORD\n                  optional: false"
+    },
+    {
+      "path": "spec.template.spec.containers[].envFrom[].secretRef",
+      "type": "Object",
+      "description": "通过 envFrom 批量注入 Secret。适合密钥项较多、应用本身通过标准环境变量读取认证信息的场景，但要注意环境变量会出现在进程环境中，因此不适合过量暴露敏感信息。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payment-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: payment-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: payment-service\n    spec:\n      containers:\n        - name: payment-service\n          image: registry.example.com/finance/payment-service:2.7.3\n          envFrom:\n            - secretRef:\n                name: payment-service-secret"
+    },
+    {
+      "path": "spec.template.spec.containers[].envFrom[].prefix",
+      "type": "string",
+      "description": "给批量导入的 Secret 环境变量统一加前缀。适合把多组密钥按系统或模块命名空间隔离，避免覆盖已有变量。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payment-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: payment-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: payment-service\n    spec:\n      containers:\n        - name: payment-service\n          image: registry.example.com/finance/payment-service:2.7.3\n          envFrom:\n            - prefix: PAYMENT_\n              secretRef:\n                name: payment-service-secret"
+    },
+    {
+      "path": "spec.template.spec.containers[].envFrom[].secretRef.optional",
+      "type": "boolean",
+      "description": "Secret 是否可选。对支付、账户、消息系统等关键服务通常应保持 false，避免凭据缺失时仍然错误启动。",
+      "demo": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payment-service\n  namespace: prod\nspec:\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: payment-service\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: payment-service\n    spec:\n      containers:\n        - name: payment-service\n          image: registry.example.com/finance/payment-service:2.7.3\n          envFrom:\n            - secretRef:\n                name: payment-service-secret\n                optional: false"
+    }
+  ],
+  "PVC": [
+    {
+      "path": "metadata.annotations",
+      "type": "map[string]string",
+      "description": "PVC 注解。可用于记录归档等级、备份策略、数据保留周期或平台自动化标记，方便存储运维和成本治理。",
+      "demo": "apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: audit-log-pvc\n  namespace: prod\n  annotations:\n    storage.platform.example.com/tier: \"hot\"\n    storage.platform.example.com/retention: \"180d\"\nspec:\n  accessModes:\n    - ReadWriteOnce\n  resources:\n    requests:\n      storage: 500Gi\n  storageClassName: csi-ssd"
+    },
+    {
+      "path": "spec.accessModes",
+      "type": "[]string",
+      "description": "访问模式决定卷如何被挂载。生产最常见的是 ReadWriteOnce；如果业务需要多副本共享同一卷，应确认底层存储是否真正支持 ReadWriteMany，而不是只在 YAML 中写上一个看似可用的模式。",
+      "demo": "apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: audit-log-pvc\n  namespace: prod\nspec:\n  accessModes:\n    - ReadWriteOnce\n  resources:\n    requests:\n      storage: 100Gi\n  storageClassName: csi-ssd"
+    },
+    {
+      "path": "spec.resources.requests.storage",
+      "type": "Object",
+      "description": "PVC 申请的容量大小。生产容量规划不应只看当前数据量，还要考虑峰值增长、保留周期、压缩率与扩容窗口；若依赖动态扩容，还需确保 StorageClass 开启 allowVolumeExpansion。",
+      "demo": "apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: audit-log-pvc\n  namespace: prod\nspec:\n  accessModes:\n    - ReadWriteOnce\n  resources:\n    requests:\n      storage: 500Gi\n  storageClassName: csi-ssd"
+    },
+    {
+      "path": "spec.storageClassName",
+      "type": "string",
+      "description": "StorageClass 决定底层存储类型、性能级别与回收策略。生产应根据业务特征选择 SSD、吞吐优化盘或高可用盘，并区分数据库、日志、缓存、归档等不同场景。",
+      "demo": "apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: mysql-data\n  namespace: prod\nspec:\n  accessModes:\n    - ReadWriteOnce\n  resources:\n    requests:\n      storage: 200Gi\n  storageClassName: csi-high-iops"
+    },
+    {
+      "path": "spec.volumeMode",
+      "type": "string",
+      "description": "卷模式。大多数微服务和中间件使用 Filesystem；只有对裸块设备有明确需求时才使用 Block，例如某些数据库或高性能存储场景。",
+      "demo": "apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: kafka-data\n  namespace: prod\nspec:\n  accessModes:\n    - ReadWriteOnce\n  volumeMode: Filesystem\n  resources:\n    requests:\n      storage: 1Ti\n  storageClassName: csi-ssd"
+    },
+    {
+      "path": "spec.selector",
+      "type": "Object",
+      "description": "PVC 通过标签选择器绑定现有 PV。适合接管历史卷、手工导入外部存储或特定合规分区，但要确保 selector 与 volumeName、storageClass 策略一致。",
+      "demo": "apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: legacy-order-archive\n  namespace: prod\nspec:\n  accessModes:\n    - ReadWriteOnce\n  selector:\n    matchLabels:\n      storage-role: archive\n      app: order\n  resources:\n    requests:\n      storage: 2Ti\n  storageClassName: \"\""
+    },
+    {
+      "path": "spec.dataSource",
+      "type": "TypedLocalObjectReference",
+      "description": "从 VolumeSnapshot 或现有 PVC 恢复数据。生产中常用于演练恢复、搭建只读分析副本或故障回滚，前提是 CSI 驱动和快照 CRD 已正确安装并验证过恢复链路。",
+      "demo": "apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: audit-log-restore\n  namespace: prod\nspec:\n  accessModes:\n    - ReadWriteOnce\n  storageClassName: csi-ssd\n  resources:\n    requests:\n      storage: 500Gi\n  dataSource:\n    name: audit-log-snap-20260328\n    kind: VolumeSnapshot\n    apiGroup: snapshot.storage.k8s.io"
+    },
+    {
+      "path": "spec.dataSourceRef",
+      "type": "TypedObjectReference",
+      "description": "更通用的数据来源引用。相比 dataSource，它对更多自定义数据源和未来扩展更友好；是否可用取决于集群版本与 CSI 驱动能力。",
+      "demo": "apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: mysql-restore\n  namespace: prod\nspec:\n  accessModes:\n    - ReadWriteOnce\n  storageClassName: csi-high-iops\n  resources:\n    requests:\n      storage: 200Gi\n  dataSourceRef:\n    apiGroup: snapshot.storage.k8s.io\n    kind: VolumeSnapshot\n    name: mysql-snap-20260328"
+    },
+    {
+      "path": "spec.volumeName",
+      "type": "string",
+      "description": "显式绑定到某个预创建的 PV。适用于手工接管已有存储、迁移历史数据或对接外部预置磁盘的场景；使用时要同步确认 PV 的 reclaimPolicy、容量和访问模式是否匹配。",
+      "demo": "apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: legacy-order-archive\n  namespace: prod\nspec:\n  accessModes:\n    - ReadWriteOnce\n  resources:\n    requests:\n      storage: 2Ti\n  volumeName: pv-order-archive-001\n  storageClassName: ''"
+    }
+  ],
+  "StatefulSet": [
+    {
+      "path": "spec.serviceName",
+      "type": "string",
+      "description": "StatefulSet 依赖 Headless Service 提供稳定网络标识。serviceName 必须指向一个 clusterIP: None 的 Service，才能让每个 Pod 获得可预测的 DNS，如 redis-cluster-0.redis-cluster-headless.prod.svc。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.replicas",
+      "type": "integer",
+      "description": "有状态副本数。不能只看流量容量，还要结合主从、副本因子、仲裁数、可用区分布与故障域设计；例如 Redis Sentinel、Kafka、ZooKeeper 的副本策略都不同。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster"
+    },
+    {
+      "path": "spec.selector",
+      "type": "Object",
+      "description": "StatefulSet 标签选择器。必须与 template.metadata.labels 保持稳定一致，且发布后不应随意修改，否则会影响控制器对已有 Pod 的接管关系。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.podManagementPolicy",
+      "type": "string",
+      "description": "Pod 管理策略。OrderedReady 更保守，适合强顺序依赖的数据库集群；Parallel 能加快独立节点的扩缩容和重建速度，但必须确认应用本身支持并发启动。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  podManagementPolicy: Parallel\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.updateStrategy",
+      "type": "Object",
+      "description": "StatefulSet 的更新策略。RollingUpdate 支持按序滚动更新，partition 可以保留部分旧实例，适合对状态节点分批灰度；关键中间件升级前仍建议先做快照、备份和只读切换预案。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  updateStrategy:\n    type: RollingUpdate\n    rollingUpdate:\n      partition: 1\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.revisionHistoryLimit",
+      "type": "integer",
+      "description": "保留历史版本数量。对中间件升级回滚很重要，但也应控制数量，避免状态类应用积累过多历史版本带来排障复杂度。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  revisionHistoryLimit: 10\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster"
+    },
+    {
+      "path": "spec.minReadySeconds",
+      "type": "integer",
+      "description": "最小就绪时间。对有状态组件很有价值，因为某些实例刚通过就绪探针并不代表已经完成同步或稳定对外服务，可留出额外观察窗口。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  minReadySeconds: 10\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster"
+    },
+    {
+      "path": "spec.ordinals.start",
+      "type": "integer",
+      "description": "StatefulSet 起始序号。适用于分段迁移、灰度接管现有实例编号或与外部系统预留编号对齐的场景，但使用前要确认客户端寻址逻辑能正确适配。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  ordinals:\n    start: 3\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster"
+    },
+    {
+      "path": "spec.persistentVolumeClaimRetentionPolicy",
+      "type": "Object",
+      "description": "StatefulSet 删除或缩容时的 PVC 保留策略。生产环境为了防止误删数据，通常将 whenDeleted 与 whenScaled 都设为 Retain；如果是临时环境或缓存集群，再考虑按生命周期自动清理。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  persistentVolumeClaimRetentionPolicy:\n    whenDeleted: Retain\n    whenScaled: Retain\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.template.metadata.annotations",
+      "type": "map[string]string",
+      "description": "Pod 模板注解。对有状态应用常用于 Prometheus 抓取、配置 checksum 变更、sidecar 控制和备份编排联动。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n      annotations:\n        prometheus.io/scrape: \"true\"\n        prometheus.io/port: \"9121\"\n        checksum/config: \"3cb1b377b0f8a5d21596f8617ea52f31\""
+    },
+    {
+      "path": "spec.template.spec.securityContext",
+      "type": "Object",
+      "description": "StatefulSet Pod 级安全上下文。对需要持久卷的中间件尤其重要，因为 volume 权限、运行用户和共享文件组往往需要在 Pod 级统一设置。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      securityContext:\n        runAsUser: 10001\n        runAsGroup: 10001\n        fsGroup: 10001\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.template.spec.securityContext.fsGroup",
+      "type": "integer",
+      "description": "有状态卷的共享文件组。很多中间件镜像并非 root 运行，若持久卷默认权限不匹配，通常需要 fsGroup 来确保数据目录可读写。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      securityContext:\n        runAsUser: 10001\n        runAsGroup: 10001\n        fsGroup: 10001\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.template.spec.serviceAccountName",
+      "type": "string",
+      "description": "有状态组件使用的 ServiceAccount。若中间件 sidecar、备份控制器或运维任务需要访问 K8s API，应为其单独绑定最小权限账号。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      serviceAccountName: redis-cluster-sa\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.template.spec.priorityClassName",
+      "type": "string",
+      "description": "中间件优先级类。适合 Redis、Kafka、MySQL 这类关键基础组件，在集群资源紧张时保证它们优先被调度与保留。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      priorityClassName: middleware-critical\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.template.spec.nodeSelector",
+      "type": "map[string]string",
+      "description": "把有状态副本固定到特定节点池。数据库、缓存、消息队列常部署在高 IOPS 或专用节点上，以便隔离噪声工作负载并保障磁盘性能。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      nodeSelector:\n        nodepool: middleware\n        disk-tier: ssd\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.template.spec.hostAliases",
+      "type": "[]Object",
+      "description": "为有状态 Pod 增加静态 hosts 解析。除兼容遗留外部系统、迁移过渡场景外，仍应优先依赖 Service DNS 或 Headless Service 发现机制。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      hostAliases:\n        - ip: \"10.10.10.20\"\n          hostnames:\n            - \"legacy-sentinel.internal\"\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.template.spec.tolerations",
+      "type": "[]Object",
+      "description": "容忍专用中间件节点上的污点。通常与 dedicated=middleware:NoSchedule 配套，确保 Redis、Kafka 等不会被调度到通用应用节点。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      tolerations:\n        - key: \"dedicated\"\n          operator: \"Equal\"\n          value: \"middleware\"\n          effect: \"NoSchedule\"\n      nodeSelector:\n        nodepool: middleware\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.template.spec.affinity.podAntiAffinity",
+      "type": "Object",
+      "description": "有状态副本之间的反亲和性。为了降低宿主机故障导致的多副本同时不可用，Redis、Kafka、MySQL 等有状态组件通常至少按 hostname 打散，跨可用区场景再叠加 zone 维度。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      affinity:\n        podAntiAffinity:\n          preferredDuringSchedulingIgnoredDuringExecution:\n            - weight: 100\n              podAffinityTerm:\n                labelSelector:\n                  matchLabels:\n                    app.kubernetes.io/name: redis-cluster\n                topologyKey: kubernetes.io/hostname\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.template.spec.terminationGracePeriodSeconds",
+      "type": "integer",
+      "description": "优雅终止总窗口。必须覆盖 preStop 执行时间以及进程自身的关闭时长；对数据库、缓存、消息队列而言，窗口通常比无状态应用更长，避免 kubelet 过早发送 SIGKILL。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      terminationGracePeriodSeconds: 120\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1"
+    },
+    {
+      "path": "spec.template.spec.containers[].envFrom",
+      "type": "[]Object",
+      "description": "批量导入 ConfigMap/Secret 环境变量。对中间件 Sidecar、Exporter 或需要统一注入密码与节点参数的场景比较实用，但仍要控制变量数量与命名规范。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1\n          envFrom:\n            - prefix: REDIS_\n              secretRef:\n                name: redis-cluster-secret"
+    },
+    {
+      "path": "spec.template.spec.containers[].resources",
+      "type": "Object",
+      "description": "有状态容器资源请求与限制。对 Redis、MySQL、Kafka 等组件，资源规划要同时考虑内存命中率、磁盘缓存、复制流量、后台压缩和主从同步开销。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1\n          resources:\n            requests:\n              cpu: 1000m\n              memory: 4Gi\n            limits:\n              cpu: 2000m\n              memory: 4Gi"
+    },
+    {
+      "path": "spec.template.spec.containers[].volumeMounts[]",
+      "type": "[]VolumeMount",
+      "description": "有状态容器卷挂载。通常至少挂载数据目录，必要时再挂载配置目录、日志目录或证书目录；挂载路径必须与中间件实际读写路径严格对应。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1\n          volumeMounts:\n            - name: redis-data\n              mountPath: /data\n            - name: redis-config\n              mountPath: /usr/local/etc/redis/redis.conf\n              subPath: redis.conf"
+    },
+    {
+      "path": "spec.template.spec.containers[].livenessProbe",
+      "type": "Object",
+      "description": "有状态应用的存活探针要尽量保守，避免因为短暂主从切换、后台重写、磁盘抖动而误杀进程。通常只检测最基础的进程存活能力。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1\n          livenessProbe:\n            tcpSocket:\n              port: redis\n            initialDelaySeconds: 20\n            periodSeconds: 15\n            timeoutSeconds: 2\n            failureThreshold: 5"
+    },
+    {
+      "path": "spec.template.spec.containers[].livenessProbe.initialDelaySeconds",
+      "type": "integer",
+      "description": "有状态组件存活探针首次延迟。要给出足够的恢复和加载窗口，避免在 AOF/RDB 恢复、大数据集加载或磁盘抖动时误杀实例。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1\n          livenessProbe:\n            tcpSocket:\n              port: redis\n            initialDelaySeconds: 20\n            periodSeconds: 15\n            timeoutSeconds: 2\n            failureThreshold: 5"
+    },
+    {
+      "path": "spec.template.spec.containers[].readinessProbe",
+      "type": "Object",
+      "description": "有状态应用的就绪探针要比无状态服务更谨慎。以 Redis 为例，至少应确认端口可服务；若使用主从或集群模式，还应结合角色状态、复制延迟或节点健康做更细化判断。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1\n          ports:\n            - name: redis\n              containerPort: 6379\n          readinessProbe:\n            tcpSocket:\n              port: redis\n            initialDelaySeconds: 10\n            periodSeconds: 5\n            timeoutSeconds: 2\n            failureThreshold: 6"
+    },
+    {
+      "path": "spec.template.spec.containers[].startupProbe",
+      "type": "Object",
+      "description": "启动探针适合初始化较慢的中间件节点，例如需要加载大数据集、恢复 AOF/RDB、执行日志回放或进行分片握手时，避免在冷启动阶段被过早重启。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1\n          startupProbe:\n            tcpSocket:\n              port: redis\n            periodSeconds: 10\n            timeoutSeconds: 3\n            failureThreshold: 30"
+    },
+    {
+      "path": "spec.template.spec.containers[].startupProbe.failureThreshold",
+      "type": "integer",
+      "description": "StatefulSet 启动探针失败阈值。它直接决定中间件节点冷启动最大容忍时长，必须覆盖恢复日志、同步数据、加入集群等真实启动耗时。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1\n          startupProbe:\n            tcpSocket:\n              port: redis\n            periodSeconds: 10\n            timeoutSeconds: 3\n            failureThreshold: 30"
+    },
+    {
+      "path": "spec.template.spec.containers[].lifecycle.preStop",
+      "type": "Object",
+      "description": "StatefulSet 的 preStop 用于在容器退出前完成连接摘除、刷盘、角色迁移或优雅关停。中间件的优雅停机通常比普通微服务更重要，否则容易引发复制中断或脏数据。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      terminationGracePeriodSeconds: 120\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1\n          lifecycle:\n            preStop:\n              exec:\n                command:\n                  - /bin/sh\n                  - -c\n                  - redis-cli -p 6379 shutdown nosave || true"
+    },
+    {
+      "path": "spec.template.spec.containers[].securityContext",
+      "type": "Object",
+      "description": "中间件容器级安全上下文。即便是 Redis、Kafka 这类有状态组件，也应尽量避免 root 运行，并显式控制提权和 capabilities，满足安全基线要求。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1\n          securityContext:\n            runAsNonRoot: true\n            allowPrivilegeEscalation: false\n            capabilities:\n              drop:\n                - ALL"
+    },
+    {
+      "path": "spec.volumeClaimTemplates[]",
+      "type": "[]PersistentVolumeClaim",
+      "description": "StatefulSet 为每个副本自动创建独立 PVC。生产数据库、缓存、消息队列都应使用 volumeClaimTemplates 保证副本级数据隔离，并根据容量预估选择合适的 storageClass 和容量。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1\n          volumeMounts:\n            - name: redis-data\n              mountPath: /data\n  volumeClaimTemplates:\n    - metadata:\n        name: redis-data\n      spec:\n        accessModes:\n          - ReadWriteOnce\n        resources:\n          requests:\n            storage: 100Gi\n        storageClassName: csi-ssd"
+    },
+    {
+      "path": "spec.volumeClaimTemplates[].spec.volumeMode",
+      "type": "string",
+      "description": "StatefulSet 每个副本 PVC 的卷模式。绝大多数中间件使用 Filesystem；只有极少数对裸块设备有明确需求的系统才会选择 Block。",
+      "demo": "apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: redis-cluster\n  namespace: prod\nspec:\n  serviceName: redis-cluster-headless\n  replicas: 3\n  selector:\n    matchLabels:\n      app.kubernetes.io/name: redis-cluster\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/name: redis-cluster\n    spec:\n      containers:\n        - name: redis\n          image: registry.example.com/middleware/redis:7.2.5-1\n          volumeMounts:\n            - name: redis-data\n              mountPath: /data\n  volumeClaimTemplates:\n    - metadata:\n        name: redis-data\n      spec:\n        accessModes:\n          - ReadWriteOnce\n        volumeMode: Filesystem\n        resources:\n          requests:\n            storage: 100Gi\n        storageClassName: csi-ssd"
+    }
+  ]
+}
